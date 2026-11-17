@@ -1,0 +1,6 @@
+{
+  "name": "ECET Tracker 2027",
+  "description": "Offline-first personal study planner, editable syllabus tracker, Pomodoro & study timer, daily tasks, MCQ & mock test analytics for Telangana ECET 2027 ECE preparation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "ECET Tracker 2027",
+  "short_name": "ECET 2027",
+  "description": "Offline-first study planner, editable syllabus tracker, Pomodoro & study timer, daily tasks, MCQ & mock test analytics for Telangana ECET 2027.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#090D16",
+  "theme_color": "#090D16",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

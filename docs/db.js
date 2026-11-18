@@ -1,5 +1,5 @@
 const DB_NAME = 'ecet_tracker_2027_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const DEFAULT_PREFS = {
   studentName: 'ECET Aspirant',
@@ -29,6 +29,15 @@ export const DEFAULT_TIMER = {
   pomodoroRound: 1
 };
 
+export const DEFAULT_SYLLABUS_PHOTO = {
+  dataUrl: null,
+  rotationDeg: 0
+};
+
+export const DEFAULT_AI_SETTINGS = {
+  apiKey: ''
+};
+
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -51,6 +60,9 @@ function openDb() {
       }
       if (!db.objectStoreNames.contains('mockTests')) {
         db.createObjectStore('mockTests', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('aiSummaries')) {
+        db.createObjectStore('aiSummaries', { keyPath: 'id', autoIncrement: true });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -89,24 +101,49 @@ async function setMeta(key, value) {
 }
 
 export async function loadAllData() {
-  const [preferences, timerSnapshot, topics, studySessions, dailyTasks, mcqSessions, mockTests] =
-    await Promise.all([
-      getMeta('preferences', DEFAULT_PREFS),
-      getMeta('timer', DEFAULT_TIMER),
-      getAll('syllabusTopics'),
-      getAll('studySessions'),
-      getAll('dailyTasks'),
-      getAll('mcqSessions'),
-      getAll('mockTests')
-    ]);
+  const [
+    preferences,
+    timerSnapshot,
+    syllabusPhoto,
+    aiSettings,
+    topics,
+    studySessions,
+    dailyTasks,
+    mcqSessions,
+    mockTests,
+    aiSummaries
+  ] = await Promise.all([
+    getMeta('preferences', DEFAULT_PREFS),
+    getMeta('timer', DEFAULT_TIMER),
+    getMeta('syllabusPhoto', DEFAULT_SYLLABUS_PHOTO),
+    getMeta('aiSettings', DEFAULT_AI_SETTINGS),
+    getAll('syllabusTopics'),
+    getAll('studySessions'),
+    getAll('dailyTasks'),
+    getAll('mcqSessions'),
+    getAll('mockTests'),
+    getAll('aiSummaries')
+  ]);
 
   topics.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0) || b.id - a.id);
   studySessions.sort((a, b) => (b.endedAtMs || 0) - (a.endedAtMs || 0) || b.id - a.id);
   dailyTasks.sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
   mcqSessions.sort((a, b) => (b.dateEpochDay || 0) - (a.dateEpochDay || 0) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
   mockTests.sort((a, b) => (a.testDateEpochDay || 0) - (b.testDateEpochDay || 0) || (a.createdAtMs || 0) - (b.createdAtMs || 0));
+  aiSummaries.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0) || b.id - a.id);
 
-  return { preferences, timerSnapshot, topics, studySessions, dailyTasks, mcqSessions, mockTests };
+  return {
+    preferences,
+    timerSnapshot,
+    syllabusPhoto,
+    aiSettings,
+    topics,
+    studySessions,
+    dailyTasks,
+    mcqSessions,
+    mockTests,
+    aiSummaries
+  };
 }
 
 export async function savePreferences(prefs) {
@@ -115,6 +152,14 @@ export async function savePreferences(prefs) {
 
 export async function saveTimerSnapshot(snap) {
   await setMeta('timer', snap);
+}
+
+export async function saveSyllabusPhoto(photo) {
+  await setMeta('syllabusPhoto', photo);
+}
+
+export async function saveAiSettings(settings) {
+  await setMeta('aiSettings', settings);
 }
 
 export async function putRecord(storeName, record) {
@@ -157,7 +202,7 @@ export async function bulkInsert(storeName, records) {
 
 export async function replaceAllBackupData(payload) {
   const db = await openDb();
-  const stores = ['meta', 'syllabusTopics', 'studySessions', 'dailyTasks', 'mcqSessions', 'mockTests'];
+  const stores = ['meta', 'syllabusTopics', 'studySessions', 'dailyTasks', 'mcqSessions', 'mockTests', 'aiSummaries'];
   const sanitize = (item) => {
     const clean = { ...item };
     if (!clean.id || clean.id <= 0) delete clean.id;
@@ -168,11 +213,14 @@ export async function replaceAllBackupData(payload) {
     stores.forEach((s) => tx.objectStore(s).clear());
     tx.objectStore('meta').put({ key: 'preferences', value: { ...DEFAULT_PREFS, ...(payload.preferences || {}) } });
     tx.objectStore('meta').put({ key: 'timer', value: { ...DEFAULT_TIMER } });
+    tx.objectStore('meta').put({ key: 'syllabusPhoto', value: { ...DEFAULT_SYLLABUS_PHOTO } });
+    tx.objectStore('meta').put({ key: 'aiSettings', value: { ...DEFAULT_AI_SETTINGS } });
     (payload.syllabusTopics || []).forEach((item) => tx.objectStore('syllabusTopics').put(sanitize(item)));
     (payload.studySessions || []).forEach((item) => tx.objectStore('studySessions').put(sanitize(item)));
     (payload.dailyTasks || []).forEach((item) => tx.objectStore('dailyTasks').put(sanitize(item)));
     (payload.mcqSessions || []).forEach((item) => tx.objectStore('mcqSessions').put(sanitize(item)));
     (payload.mockTests || []).forEach((item) => tx.objectStore('mockTests').put(sanitize(item)));
+    (payload.aiSummaries || []).forEach((item) => tx.objectStore('aiSummaries').put(sanitize(item)));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -185,6 +233,7 @@ export async function resetDatabase() {
     studySessions: [],
     dailyTasks: [],
     mcqSessions: [],
-    mockTests: []
+    mockTests: [],
+    aiSummaries: []
   });
 }

@@ -102,7 +102,8 @@ enum class StudySubTab(val label: String) {
     TIMER("Timer"),
     TASKS("Tasks"),
     MCQ("MCQ"),
-    MOCKS("Mocks")
+    MOCKS("Mocks"),
+    SUMMARY("Summary")
 }
 
 data class UserPreferences(
@@ -118,7 +119,9 @@ data class UserPreferences(
     val reminderMinute: Int = 0,
     val pomodoroFocusMinutes: Int = 25,
     val pomodoroShortBreakMinutes: Int = 5,
-    val pomodoroLongBreakMinutes: Int = 15
+    val pomodoroLongBreakMinutes: Int = 15,
+    val syllabusPhotoPath: String? = null,
+    val syllabusPhotoRotationDeg: Int = 0
 )
 
 data class PersistedTimerSnapshot(
@@ -213,4 +216,27 @@ data class AnalyticsState(
     val subjectCompletions: List<SubjectSummary> = emptyList(),
     val mcqAccuracySeries: List<Pair<String, Float>> = emptyList(),
     val mockScoreSeries: List<Pair<String, Float>> = emptyList()
+)
+
+sealed interface AiSummaryUiState {
+    data object Idle : AiSummaryUiState
+    data object Loading : AiSummaryUiState
+    data class Streaming(val text: String) : AiSummaryUiState
+    data class Success(val text: String) : AiSummaryUiState
+    data class Error(val message: String) : AiSummaryUiState
+}
+
+data class AttachedStudyFile(
+    val displayName: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val bytes: ByteArray,
+    val textContent: String? = null
+)
+
+data class AiChatMessage(
+    val id: String,
+    val isUser: Boolean,
+    val text: String,
+    val isStreaming: Boolean = false
 )

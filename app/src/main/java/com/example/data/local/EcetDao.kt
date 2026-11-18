@@ -84,6 +84,19 @@ interface EcetDao {
     @Query("DELETE FROM mock_tests WHERE id = :id")
     suspend fun deleteMockTestById(id: Long)
 
+    // AI Summaries
+    @Query("SELECT * FROM ai_summaries ORDER BY createdAtMs DESC, id DESC")
+    fun observeAiSummaries(): Flow<List<AiSummaryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAiSummary(summary: AiSummaryEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAiSummaries(summaries: List<AiSummaryEntity>)
+
+    @Query("DELETE FROM ai_summaries WHERE id = :id")
+    suspend fun deleteAiSummaryById(id: Long)
+
     // Bulk Clear & Restore
     @Query("DELETE FROM syllabus_topics")
     suspend fun clearTopics()
@@ -100,6 +113,9 @@ interface EcetDao {
     @Query("DELETE FROM mock_tests")
     suspend fun clearMockTests()
 
+    @Query("DELETE FROM ai_summaries")
+    suspend fun clearAiSummaries()
+
     @Transaction
     suspend fun clearAllTables() {
         clearTopics()
@@ -107,6 +123,7 @@ interface EcetDao {
         clearDailyTasks()
         clearMcqSessions()
         clearMockTests()
+        clearAiSummaries()
     }
 
     @Transaction
@@ -115,7 +132,8 @@ interface EcetDao {
         sessions: List<StudySessionEntity>,
         tasks: List<DailyTaskEntity>,
         mcqs: List<McqSessionEntity>,
-        mocks: List<MockTestEntity>
+        mocks: List<MockTestEntity>,
+        aiSummaries: List<AiSummaryEntity> = emptyList()
     ) {
         clearAllTables()
         if (topics.isNotEmpty()) insertTopics(topics)
@@ -123,5 +141,6 @@ interface EcetDao {
         if (tasks.isNotEmpty()) insertDailyTasks(tasks)
         if (mcqs.isNotEmpty()) insertMcqSessions(mcqs)
         if (mocks.isNotEmpty()) insertMockTests(mocks)
+        if (aiSummaries.isNotEmpty()) insertAiSummaries(aiSummaries)
     }
 }

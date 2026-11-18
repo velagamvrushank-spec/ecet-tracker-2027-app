@@ -1,5 +1,7 @@
 import {
+  DEFAULT_AI_SETTINGS,
   DEFAULT_PREFS,
+  DEFAULT_SYLLABUS_PHOTO,
   DEFAULT_TIMER,
   bulkInsert,
   deleteRecord,
@@ -7,7 +9,9 @@ import {
   putRecord,
   replaceAllBackupData,
   resetDatabase,
+  saveAiSettings,
   savePreferences,
+  saveSyllabusPhoto,
   saveTimerSnapshot
 } from './db.js';
 import { esc, renderBarChartSvg, renderDonutChartSvg, renderTrendLineSvg } from './charts.js';
@@ -142,11 +146,14 @@ const state = {
   studySubTab: 'TIMER',
   preferences: { ...DEFAULT_PREFS },
   timerSnapshot: { ...DEFAULT_TIMER },
+  syllabusPhoto: { ...DEFAULT_SYLLABUS_PHOTO },
+  aiSettings: { ...DEFAULT_AI_SETTINGS },
   topics: [],
   studySessions: [],
   dailyTasks: [],
   mcqSessions: [],
   mockTests: [],
+  aiSummaries: [],
   syllabusFilterSubject: null,
   syllabusFilterStatus: null,
   syllabusFilterPriority: null,
@@ -156,7 +163,16 @@ const state = {
   calendarYear: new Date().getFullYear(),
   calendarMonth: new Date().getMonth() + 1,
   deferredInstallPrompt: null,
-  installDismissed: false
+  installDismissed: false,
+  aiSummarySubject: 'ECE',
+  aiSummaryTopic: '',
+  aiAttachedFile: null,
+  aiStatus: 'IDLE',
+  aiOutput: '',
+  aiError: '',
+  aiQaMessages: [],
+  aiQaLoading: false,
+  aiQaError: ''
 };
 
 // Navigation Icons
@@ -448,11 +464,14 @@ async function reloadData() {
   const data = await loadAllData();
   state.preferences = data.preferences;
   state.timerSnapshot = data.timerSnapshot;
+  state.syllabusPhoto = data.syllabusPhoto || { ...DEFAULT_SYLLABUS_PHOTO };
+  state.aiSettings = data.aiSettings || { ...DEFAULT_AI_SETTINGS };
   state.topics = data.topics;
   state.studySessions = data.studySessions;
   state.dailyTasks = data.dailyTasks;
   state.mcqSessions = data.mcqSessions;
   state.mockTests = data.mockTests;
+  state.aiSummaries = data.aiSummaries || [];
   applyTheme(state.preferences.themeMode);
 }
 
@@ -565,14 +584,18 @@ function renderHome(main, agg) {
           <span>Add Task</span>
         </button>
       </div>
-      <div class="grid-2" style="margin-top:8px;">
+      <div class="grid-3" style="margin-top:8px;">
         <button class="quick-tile" id="qa-mcq" type="button">
           <span class="quick-icon" style="background:rgba(217,119,6,0.14);color:#D97706;">?</span>
-          <span>Record MCQ Practice</span>
+          <span>MCQ Log</span>
         </button>
         <button class="quick-tile" id="qa-mock" type="button">
           <span class="quick-icon" style="background:rgba(2,132,199,0.14);color:#0284C7;">▤</span>
-          <span>Record Mock Test</span>
+          <span>Mock Test</span>
+        </button>
+        <button class="quick-tile" id="qa-summary" type="button">
+          <span class="quick-icon" style="background:rgba(5,150,105,0.14);color:#059669;">✦</span>
+          <span>AI Summary</span>
         </button>
       </div>
     </div>
@@ -666,6 +689,7 @@ function renderHome(main, agg) {
   document.getElementById('qa-task').onclick = () => { state.tab = 'study'; state.studySubTab = 'TASKS'; state.tasksSelectedDate = todayEpochDay(); render(); openTaskModal(); };
   document.getElementById('qa-mcq').onclick = () => { state.tab = 'study'; state.studySubTab = 'MCQ'; render(); openMcqModal(); };
   document.getElementById('qa-mock').onclick = () => { state.tab = 'study'; state.studySubTab = 'MOCKS'; render(); openMockModal(); };
+  document.getElementById('qa-summary').onclick = () => { state.tab = 'study'; state.studySubTab = 'SUMMARY'; render(); };
   document.getElementById('btn-home-syllabus').onclick = () => { state.tab = 'syllabus'; render(); };
   document.getElementById('btn-home-timer').onclick = () => { state.tab = 'study'; state.studySubTab = 'TIMER'; render(); };
   document.getElementById('btn-home-tasks').onclick = () => { state.tab = 'study'; state.studySubTab = 'TASKS'; render(); };
@@ -695,6 +719,9 @@ function renderSyllabus(main, agg) {
     return mSub && mStat && mPrio && mQ;
   });
 
+  const hasPhoto = Boolean(state.syllabusPhoto?.dataUrl);
+  const photoRotation = state.syllabusPhoto?.rotationDeg || 0;
+
   main.innerHTML = `
     <div class="row-between">
       <div>
@@ -702,6 +729,37 @@ function renderSyllabus(main, agg) {
         <div class="muted">Editable 4-subject structure · Import official 2027 topics anytime</div>
       </div>
       <button id="btn-import-syllabus" class="btn btn-outline btn-sm" type="button">Import</button>
+    </div>
+
+    <div class="card">
+      <div class="syllabus-photo-row">
+        <button id="syllabus-photo-box" class="syllabus-photo-box" type="button" aria-label="Choose syllabus photo">
+          ${
+            hasPhoto
+              ? `<img src="${state.syllabusPhoto.dataUrl}" alt="Syllabus pinned photo" style="transform:rotate(${photoRotation}deg);" />`
+              : `<div style="padding:10px;">
+                   <div style="font-size:24px;color:var(--primary);margin-bottom:4px;">🖼</div>
+                   <div style="font-size:11.5px;font-weight:600;">Tap to Add Photo</div>
+                 </div>`
+          }
+        </button>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
+          <div class="h3">Syllabus Photo Box</div>
+          <div class="muted">${hasPhoto ? 'Pinned in a 1:1 square frame. Tap photo to swap or rotate upright.' : 'Pin a photo, formula sheet, or circuit note inside this square box.'}</div>
+          <div class="row-wrap" style="gap:6px;">
+            <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+              ${hasPhoto ? 'Change' : 'Choose Photo'}
+              <input id="syllabus-photo-input" type="file" accept="image/*" style="display:none;" />
+            </label>
+            ${
+              hasPhoto
+                ? `<button id="btn-rotate-photo" class="btn btn-tonal btn-sm" type="button">Rotate 90°</button>
+                   <button id="btn-remove-photo" class="btn btn-ghost btn-sm" type="button" style="color:var(--danger);">Remove</button>`
+                : ''
+            }
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="grid-2">
@@ -769,7 +827,8 @@ function renderSyllabus(main, agg) {
                   <select class="input" data-status-select="${t.id}" style="width:auto;min-height:34px;padding:4px 10px;font-size:12px;color:${stat.color};border-color:${stat.color}66;">
                     ${STATUSES.map((s) => `<option value="${s.key}" ${t.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
                   </select>
-                  <div>
+                  <div style="display:flex;align-items:center;gap:2px;">
+                    <button class="btn btn-ghost btn-sm" data-ai-topic="${t.id}" type="button" style="color:var(--primary);">✦ AI</button>
                     <button class="icon-btn" data-edit-topic="${t.id}" type="button" aria-label="Edit">✎</button>
                     <button class="icon-btn danger" data-del-topic="${t.id}" type="button" aria-label="Delete">🗑</button>
                   </div>
@@ -783,6 +842,41 @@ function renderSyllabus(main, agg) {
     <button id="fab-add-topic" class="fab" type="button" aria-label="Add Topic">+</button>
   `;
 
+  const photoInput = document.getElementById('syllabus-photo-input');
+  document.getElementById('syllabus-photo-box').onclick = () => photoInput?.click();
+  if (photoInput) {
+    photoInput.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const dataUrl = await compressImageFileToDataUrl(file, 960, 0.86);
+        state.syllabusPhoto = { dataUrl, rotationDeg: 0 };
+        await saveSyllabusPhoto(state.syllabusPhoto);
+        toast('Syllabus photo saved.');
+        render();
+      } catch (err) {
+        toast(`Could not load photo: ${err.message}`);
+      }
+    };
+  }
+  const rotateBtn = document.getElementById('btn-rotate-photo');
+  if (rotateBtn) {
+    rotateBtn.onclick = async () => {
+      const nextRot = ((state.syllabusPhoto?.rotationDeg || 0) + 90) % 360;
+      state.syllabusPhoto = { ...state.syllabusPhoto, rotationDeg: nextRot };
+      await saveSyllabusPhoto(state.syllabusPhoto);
+      render();
+    };
+  }
+  const removeBtn = document.getElementById('btn-remove-photo');
+  if (removeBtn) {
+    removeBtn.onclick = async () => {
+      state.syllabusPhoto = { ...DEFAULT_SYLLABUS_PHOTO };
+      await saveSyllabusPhoto(state.syllabusPhoto);
+      toast('Syllabus photo removed.');
+      render();
+    };
+  }
   document.getElementById('btn-import-syllabus').onclick = () => openSyllabusImportModal();
   document.getElementById('fab-add-topic').onclick = () => openTopicModal();
   const searchEl = document.getElementById('syllabus-search');
@@ -851,6 +945,18 @@ function renderSyllabus(main, agg) {
       }
     };
   });
+  document.querySelectorAll('[data-ai-topic]').forEach((btn) => {
+    btn.onclick = () => {
+      const t = state.topics.find((x) => x.id === Number(btn.getAttribute('data-ai-topic')));
+      if (t) {
+        state.aiSummarySubject = t.subject || 'ECE';
+        state.aiSummaryTopic = t.title || '';
+        state.tab = 'study';
+        state.studySubTab = 'SUMMARY';
+        render();
+      }
+    };
+  });
   document.querySelectorAll('[data-edit-topic]').forEach((btn) => {
     btn.onclick = () => openTopicModal(state.topics.find((x) => x.id === Number(btn.getAttribute('data-edit-topic'))));
   });
@@ -875,7 +981,8 @@ function renderStudyHub(main, agg) {
     { key: 'TIMER', label: 'Timer' },
     { key: 'TASKS', label: 'Tasks' },
     { key: 'MCQ', label: 'MCQ' },
-    { key: 'MOCKS', label: 'Mocks' }
+    { key: 'MOCKS', label: 'Mocks' },
+    { key: 'SUMMARY', label: 'Summary' }
   ];
   main.innerHTML = `
     <div class="segmented">
@@ -893,7 +1000,8 @@ function renderStudyHub(main, agg) {
   if (state.studySubTab === 'TIMER') renderTimerSection(body, agg);
   else if (state.studySubTab === 'TASKS') renderTasksSection(body, agg);
   else if (state.studySubTab === 'MCQ') renderMcqSection(body, agg);
-  else renderMocksSection(body, agg);
+  else if (state.studySubTab === 'MOCKS') renderMocksSection(body, agg);
+  else renderAiSummarySection(body);
 }
 
 function renderTimerSection(container, agg) {
@@ -1471,6 +1579,447 @@ function renderMocksSection(container, agg) {
           render();
         });
       }
+    };
+  });
+}
+
+async function compressImageFileToDataUrl(file, maxDim = 960, quality = 0.86) {
+  const readerUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('Unable to read image file.'));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('Invalid image file.'));
+    i.src = readerUrl;
+  });
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * scale));
+  canvas.height = Math.max(1, Math.round(img.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+function buildElectronicsPrompt(subjectKey, topicText, fileName, questionText = '') {
+  const subj = getSubject(subjectKey);
+  const lines = [
+    `Explain in a simple way related to Electronics & Communication Engineering (TG ECET 2027 · ${subj.displayName}):`
+  ];
+  if (topicText) lines.push(`Topic: ${topicText}`);
+  if (fileName) lines.push(`File reference: ${fileName}`);
+  if (questionText) lines.push(`Question: ${questionText}`);
+  lines.push('Include: 1) Simple meaning, 2) Core electronics concepts/formulas, 3) Practical circuit example, 4) TG ECET exam traps, 5) 2 quick practice questions.');
+  return lines.join('\n');
+}
+
+async function callBrowserGeminiApi(apiKey, contents) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [
+          {
+            text: 'You are an Electronics & Communication Engineering (ECE) study mentor for TG ECET 2027. Summarize topics/files simply with clear headings and relate everything to practical electronics, circuits, and ECET exam pointers.'
+          }
+        ]
+      },
+      contents
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Gemini API request failed (${res.status})`);
+  }
+  const text = (data?.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+  if (!text) throw new Error('Gemini returned an empty response.');
+  return text;
+}
+
+function renderAiSummarySection(container) {
+  const subj = getSubject(state.aiSummarySubject);
+  const apiKey = (state.aiSettings?.apiKey || '').trim();
+  const hasKey = apiKey.length > 0;
+
+  container.innerHTML = `
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <div class="h2">✦ Electronics AI Summary</div>
+        <div class="muted">Summarize any file or topic in simple ECE language via Gemini AI or open other AI websites</div>
+      </div>
+
+      <div>
+        <div class="muted" style="margin-bottom:6px;">Subject Focus</div>
+        <div class="row-scroll">
+          ${SUBJECTS.map((s) => `<button class="chip ${state.aiSummarySubject === s.key ? 'active' : ''}" data-sum-sub="${s.key}" type="button">${s.shortName}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Topic or Question Focus</label>
+        <textarea id="ai-topic-input" class="input" rows="2" placeholder="e.g., BJT CE Amplifier, K-Maps, Op-Amp Integrator, Laplace RLC">${esc(state.aiSummaryTopic)}</textarea>
+      </div>
+
+      ${
+        state.topics.length
+          ? `<div class="row-scroll">
+               ${state.topics
+                 .slice(0, 10)
+                 .map((t) => `<button class="chip ${state.aiSummaryTopic === t.title ? 'active' : ''}" data-pick-sum-topic="${t.id}" type="button">${esc(t.title)}</button>`)
+                 .join('')}
+             </div>`
+          : ''
+      }
+
+      ${
+        state.aiAttachedFile
+          ? `<div class="row-between" style="padding:8px 12px;border-radius:12px;background:var(--primary-soft);border:1px solid var(--primary);">
+               <div style="min-width:0;flex:1;">
+                 <div class="h3" style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${esc(state.aiAttachedFile.name)}</div>
+                 <div class="muted">${Math.max(1, Math.round(state.aiAttachedFile.size / 1024))} KB · ${esc(state.aiAttachedFile.mimeType)}</div>
+               </div>
+               <button id="btn-clear-ai-file" class="icon-btn" type="button" aria-label="Clear file">✕</button>
+             </div>`
+          : ''
+      }
+
+      <div class="row-wrap" style="gap:8px;">
+        <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+          📎 ${state.aiAttachedFile ? 'Change File' : 'Attach PDF / Image / Note'}
+          <input id="ai-file-input" type="file" accept=".pdf,image/*,.txt,.md,.csv,.json,text/*" style="display:none;" />
+        </label>
+        <button id="btn-run-summary" class="btn btn-primary" style="flex:1;" ${state.aiStatus === 'LOADING' ? 'disabled' : ''} type="button">
+          ${state.aiStatus === 'LOADING' ? 'Summarizing...' : '✦ Summarize Electronics'}
+        </button>
+      </div>
+
+      <details ${hasKey ? '' : 'open'}>
+        <summary class="muted" style="cursor:pointer;font-weight:600;">
+          ${hasKey ? '✓ Gemini API Key saved on this phone (tap to update)' : 'Optional: Add Gemini API Key for direct in-browser AI summaries'}
+        </summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+          <div class="muted">On this static offline website, your personal key is stored only inside your browser's IndexedDB — or use the 1-tap AI website buttons below with zero key needed.</div>
+          <div style="display:flex;gap:8px;">
+            <input id="ai-key-input" class="input" type="password" value="${esc(apiKey)}" placeholder="AIza... (optional Gemini API key)" style="flex:1;" />
+            <button id="btn-save-ai-key" class="btn btn-tonal btn-sm" type="button">Save Key</button>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    ${
+      state.aiStatus === 'LOADING'
+        ? `<div class="card"><div class="h3">Simplifying into Electronics concepts...</div><div class="muted" style="margin-top:4px;">Calling Gemini API for ${esc(subj.displayName)}</div></div>`
+        : state.aiStatus === 'ERROR'
+        ? `<div class="card" style="border-color:var(--danger);">
+             <div class="h3" style="color:var(--danger);">Could not summarize in-browser</div>
+             <p class="muted" style="margin:6px 0 8px;">${esc(state.aiError)}</p>
+             <button id="btn-retry-summary" class="btn btn-outline btn-sm" type="button">Try Again</button>
+           </div>`
+        : state.aiStatus === 'SUCCESS' && state.aiOutput
+        ? `<div class="card" style="display:flex;flex-direction:column;gap:10px;">
+             <div class="row-between">
+               <span class="badge" style="color:${subj.color};background:${subj.color}20;">${subj.shortName}</span>
+               <div class="row-wrap" style="gap:6px;">
+                 <button id="btn-copy-summary" class="btn btn-outline btn-sm" type="button">Copy</button>
+                 <button id="btn-save-summary" class="btn btn-tonal btn-sm" type="button">Save Offline</button>
+               </div>
+             </div>
+             <div class="ai-summary-output">${esc(state.aiOutput)}</div>
+           </div>`
+        : ''
+    }
+
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <div class="h3">Ask Electronics Questions</div>
+        <div class="muted">Ask follow-up doubts via Gemini AI or launch Gemini Web / ChatGPT / Perplexity with your prompt copied</div>
+      </div>
+
+      ${
+        state.aiQaMessages.length
+          ? `<div style="display:flex;flex-direction:column;gap:8px;">
+               ${state.aiQaMessages
+                 .map(
+                   (m) => `<div class="qa-bubble ${m.isUser ? 'user' : 'ai'}">
+                     <span class="qa-sender" style="color:${m.isUser ? 'var(--primary)' : 'var(--secondary)'};">${m.isUser ? 'You' : 'Gemini ECE Tutor'}</span>
+                     <div class="ai-summary-output">${esc(m.text)}</div>
+                   </div>`
+                 )
+                 .join('')}
+             </div>`
+          : ''
+      }
+
+      ${state.aiQaError ? `<div class="error-text">${esc(state.aiQaError)}</div>` : ''}
+
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="ai-qa-input" class="input" rows="2" placeholder="Ask a follow-up electronics question..." style="flex:1;min-height:44px;"></textarea>
+        <button id="btn-ask-qa" class="btn btn-primary" ${state.aiQaLoading ? 'disabled' : ''} type="button">${state.aiQaLoading ? '...' : 'Ask'}</button>
+      </div>
+
+      <div class="muted" style="font-size:11.5px;">Or open on external AI websites (copies structured electronics prompt):</div>
+      <div class="row-scroll">
+        <button class="btn btn-outline btn-sm" data-ext-ai="https://gemini.google.com/app" data-ext-label="Gemini Web" type="button">Gemini Web ↗</button>
+        <button class="btn btn-outline btn-sm" data-ext-ai="https://chatgpt.com/" data-ext-label="ChatGPT" type="button">ChatGPT ↗</button>
+        <button class="btn btn-outline btn-sm" data-ext-ai="https://www.perplexity.ai/" data-ext-label="Perplexity" type="button">Perplexity ↗</button>
+      </div>
+    </div>
+
+    <div class="h2">Saved Electronics Summaries (${state.aiSummaries.length})</div>
+    ${
+      state.aiSummaries.length === 0
+        ? `<div class="card"><div class="h3">No summaries saved yet</div><div class="muted" style="margin-top:4px;">Generate a summary above and tap Save Offline to keep it on this device.</div></div>`
+        : state.aiSummaries
+            .map((s) => {
+              const ss = getSubject(s.subject);
+              return `
+              <div class="card">
+                <div class="row-between">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="badge" style="color:${ss.color};background:${ss.color}20;">${ss.shortName}</span>
+                    <span class="muted">${esc(s.sourceType)}</span>
+                  </div>
+                  <button class="icon-btn danger" data-del-summary="${s.id}" type="button" aria-label="Delete">🗑</button>
+                </div>
+                <div class="h3" style="margin-top:6px;">${esc(s.sourceTitle)}</div>
+                <div class="muted" style="margin-top:4px;">${esc((s.summaryMarkdown || '').slice(0, 140))}${s.summaryMarkdown?.length > 140 ? '...' : ''}</div>
+                <div class="row-between" style="margin-top:8px;">
+                  <span class="muted">${formatEpochDay(epochMillisToLocalEpochDay(s.createdAtMs || Date.now()))}</span>
+                  <button class="btn btn-ghost btn-sm" data-open-summary="${s.id}" type="button" style="color:var(--primary);">Open & Ask Q&A</button>
+                </div>
+              </div>
+            `;
+            })
+            .join('')
+    }
+  `;
+
+  document.querySelectorAll('[data-sum-sub]').forEach((b) => {
+    b.onclick = () => {
+      state.aiSummarySubject = b.getAttribute('data-sum-sub');
+      render();
+    };
+  });
+  const topicInputEl = document.getElementById('ai-topic-input');
+  topicInputEl.oninput = (e) => {
+    state.aiSummaryTopic = e.target.value;
+  };
+  document.querySelectorAll('[data-pick-sum-topic]').forEach((b) => {
+    b.onclick = () => {
+      const t = state.topics.find((x) => x.id === Number(b.getAttribute('data-pick-sum-topic')));
+      if (t) {
+        state.aiSummarySubject = t.subject || 'ECE';
+        state.aiSummaryTopic = t.title || '';
+        render();
+      }
+    };
+  });
+
+  const fileInputEl = document.getElementById('ai-file-input');
+  if (fileInputEl) {
+    fileInputEl.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 15 * 1024 * 1024) {
+        toast('File exceeds 15 MB limit.');
+        return;
+      }
+      const mimeType = file.type || 'application/octet-stream';
+      const isText = mimeType.startsWith('text/') || /\.(txt|md|csv|json)$/i.test(file.name);
+      if (isText) {
+        const textContent = await file.text();
+        state.aiAttachedFile = { name: file.name, size: file.size, mimeType, textContent, base64: null };
+      } else {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result || ''));
+          r.onerror = () => reject(new Error('Failed to read file.'));
+          r.readAsDataURL(file);
+        });
+        const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+        state.aiAttachedFile = { name: file.name, size: file.size, mimeType, textContent: null, base64 };
+      }
+      toast(`Attached ${file.name}`);
+      render();
+    };
+  }
+
+  const clearFileBtn = document.getElementById('btn-clear-ai-file');
+  if (clearFileBtn) {
+    clearFileBtn.onclick = () => {
+      state.aiAttachedFile = null;
+      render();
+    };
+  }
+
+  document.getElementById('btn-save-ai-key').onclick = async () => {
+    const val = document.getElementById('ai-key-input').value.trim();
+    state.aiSettings = { apiKey: val };
+    await saveAiSettings(state.aiSettings);
+    toast(val ? 'Gemini API key saved locally in browser.' : 'Gemini API key cleared.');
+    render();
+  };
+
+  const runSummary = async () => {
+    const key = (state.aiSettings?.apiKey || '').trim();
+    const topic = state.aiSummaryTopic.trim();
+    const file = state.aiAttachedFile;
+    if (!topic && !file) {
+      toast('Enter a topic or attach a file first.');
+      return;
+    }
+    if (!key) {
+      state.aiStatus = 'ERROR';
+      state.aiError = 'Enter your personal Gemini API key above for direct browser summaries, or tap Gemini Web / ChatGPT / Perplexity below.';
+      render();
+      return;
+    }
+    state.aiStatus = 'LOADING';
+    state.aiError = '';
+    state.aiQaMessages = [];
+    state.aiQaError = '';
+    render();
+    try {
+      const parts = [{ text: buildElectronicsPrompt(state.aiSummarySubject, topic, file?.name || '') }];
+      if (file?.textContent) {
+        parts.push({ text: `--- FILE CONTENT START ---\n${file.textContent.slice(0, 24000)}\n--- FILE CONTENT END ---` });
+      } else if (file?.base64) {
+        parts.push({ inlineData: { mimeType: file.mimeType, data: file.base64 } });
+      }
+      const text = await callBrowserGeminiApi(key, [{ role: 'user', parts }]);
+      state.aiStatus = 'SUCCESS';
+      state.aiOutput = text;
+    } catch (err) {
+      state.aiStatus = 'ERROR';
+      state.aiError = err.message || 'Gemini request failed.';
+    }
+    render();
+  };
+
+  document.getElementById('btn-run-summary').onclick = runSummary;
+  const retryBtn = document.getElementById('btn-retry-summary');
+  if (retryBtn) retryBtn.onclick = runSummary;
+
+  const copySummaryBtn = document.getElementById('btn-copy-summary');
+  if (copySummaryBtn) {
+    copySummaryBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(state.aiOutput || '');
+        toast('Summary copied.');
+      } catch (_) {
+        toast('Clipboard permission unavailable.');
+      }
+    };
+  }
+
+  const saveSummaryBtn = document.getElementById('btn-save-summary');
+  if (saveSummaryBtn) {
+    saveSummaryBtn.onclick = async () => {
+      if (!state.aiOutput) return;
+      const t = state.aiSummaryTopic.trim();
+      const f = state.aiAttachedFile;
+      const sourceTitle = t && f ? `${t} (${f.name})` : t || f?.name || 'Electronics Note';
+      await putRecord('aiSummaries', {
+        subject: state.aiSummarySubject,
+        sourceTitle,
+        sourceType: f ? 'FILE' : 'TOPIC',
+        summaryMarkdown: state.aiOutput,
+        createdAtMs: Date.now()
+      });
+      await reloadData();
+      toast('Summary saved offline.');
+      render();
+    };
+  }
+
+  document.getElementById('btn-ask-qa').onclick = async () => {
+    const qEl = document.getElementById('ai-qa-input');
+    const question = qEl.value.trim();
+    if (!question) return;
+    const key = (state.aiSettings?.apiKey || '').trim();
+    if (!key) {
+      toast('Save a Gemini API key or tap Gemini Web / ChatGPT / Perplexity below.');
+      return;
+    }
+    qEl.value = '';
+    state.aiQaLoading = true;
+    state.aiQaError = '';
+    state.aiQaMessages.push({ isUser: true, text: question });
+    render();
+    try {
+      const contents = [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: buildElectronicsPrompt(state.aiSummarySubject, state.aiSummaryTopic, state.aiAttachedFile?.name || '') +
+                (state.aiOutput ? `\n\nContext summary:\n${state.aiOutput.slice(0, 8000)}` : '')
+            }
+          ]
+        },
+        { role: 'model', parts: [{ text: 'Understood. Ask your electronics follow-up question.' }] },
+        ...state.aiQaMessages.slice(-8).map((m) => ({ role: m.isUser ? 'user' : 'model', parts: [{ text: m.text }] }))
+      ];
+      const answer = await callBrowserGeminiApi(key, contents);
+      state.aiQaMessages.push({ isUser: false, text: answer });
+    } catch (err) {
+      state.aiQaError = err.message || 'Question failed.';
+    } finally {
+      state.aiQaLoading = false;
+      render();
+    }
+  };
+
+  document.querySelectorAll('[data-ext-ai]').forEach((b) => {
+    b.onclick = async () => {
+      const url = b.getAttribute('data-ext-ai');
+      const label = b.getAttribute('data-ext-label');
+      const qVal = document.getElementById('ai-qa-input')?.value?.trim() || '';
+      const prompt = buildElectronicsPrompt(state.aiSummarySubject, state.aiSummaryTopic, state.aiAttachedFile?.name || '', qVal);
+      try {
+        await navigator.clipboard.writeText(prompt);
+        toast(`Prompt copied — opening ${label}.`);
+      } catch (_) {
+        toast(`Opening ${label}.`);
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    };
+  });
+
+  document.querySelectorAll('[data-open-summary]').forEach((b) => {
+    b.onclick = () => {
+      const s = state.aiSummaries.find((x) => x.id === Number(b.getAttribute('data-open-summary')));
+      if (s) {
+        state.aiSummarySubject = s.subject || 'ECE';
+        state.aiSummaryTopic = s.sourceTitle || '';
+        state.aiAttachedFile = null;
+        state.aiOutput = s.summaryMarkdown || '';
+        state.aiStatus = 'SUCCESS';
+        state.aiError = '';
+        state.aiQaMessages = [];
+        state.aiQaError = '';
+        render();
+        window.scrollTo(0, 0);
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-del-summary]').forEach((b) => {
+    b.onclick = () => {
+      const id = Number(b.getAttribute('data-del-summary'));
+      confirmModal('Delete Summary', 'Delete this saved electronics summary?', async () => {
+        await deleteRecord('aiSummaries', id);
+        await reloadData();
+        toast('Saved summary deleted.');
+        render();
+      });
     };
   });
 }
@@ -2233,14 +2782,15 @@ function buildExportJson() {
   return JSON.stringify(
     {
       app: 'ECET Tracker 2027',
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAtMs: Date.now(),
       preferences: state.preferences,
       syllabusTopics: state.topics,
       studySessions: state.studySessions,
       dailyTasks: state.dailyTasks,
       mcqSessions: state.mcqSessions,
-      mockTests: state.mockTests
+      mockTests: state.mockTests,
+      aiSummaries: state.aiSummaries
     },
     null,
     2

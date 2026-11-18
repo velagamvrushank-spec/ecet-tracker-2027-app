@@ -76,3 +76,13 @@ data class MockTestEntity(
     val notes: String = "",
     val createdAtMs: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "ai_summaries")
+data class AiSummaryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subject: String,
+    val sourceTitle: String,
+    val sourceType: String,
+    val summaryMarkdown: String,
+    val createdAtMs: Long = System.currentTimeMillis()
+)

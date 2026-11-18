@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,8 +21,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.data.local.AiSummaryEntity
 import com.example.data.local.DailyTaskEntity
 import com.example.data.local.SyllabusTopicEntity
+import com.example.data.model.AiChatMessage
+import com.example.data.model.AiSummaryUiState
+import com.example.data.model.AttachedStudyFile
 import com.example.data.model.PomodoroPhase
 import com.example.data.model.StudyMode
 import com.example.data.model.StudySubTab
@@ -59,6 +64,23 @@ fun StudyHubScreen(
     onDeleteMcqSession: (Long) -> Unit,
     onSaveMockTest: (Long, String, Long, Float, Float, Float, Float, Float, Float, Float, Float, Int, Int, Int, String) -> Unit,
     onDeleteMockTest: (Long) -> Unit,
+    summarySubject: Subject,
+    summaryTopicInput: String,
+    attachedStudyFile: AttachedStudyFile?,
+    summaryUiState: AiSummaryUiState,
+    qaMessages: List<AiChatMessage>,
+    qaError: String?,
+    isQaLoading: Boolean,
+    onSelectSummarySubject: (Subject) -> Unit,
+    onSummaryTopicInputChange: (String) -> Unit,
+    onAttachSummaryFileUri: (Uri) -> Unit,
+    onClearAttachedSummaryFile: () -> Unit,
+    onGenerateSummary: () -> Unit,
+    onAskSummaryQuestion: (String) -> Unit,
+    onSaveCurrentSummary: () -> Unit,
+    onLoadSavedSummary: (AiSummaryEntity) -> Unit,
+    onDeleteSavedSummary: (Long) -> Unit,
+    onEmitMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -74,7 +96,7 @@ fun StudyHubScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
@@ -83,7 +105,7 @@ fun StudyHubScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     StudySubTab.entries.forEach { tab ->
                         val isSelected = selectedSubTab == tab
@@ -96,12 +118,12 @@ fun StudyHubScreen(
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Box(
-                                modifier = Modifier.padding(vertical = 10.dp),
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = tab.label,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -153,6 +175,27 @@ fun StudyHubScreen(
                     onConsumeOpenAddMock = onConsumeOpenAddMock,
                     onSaveMockTest = onSaveMockTest,
                     onDeleteMockTest = onDeleteMockTest
+                )
+
+                StudySubTab.SUMMARY -> AiSummarySection(
+                    uiState = uiState,
+                    selectedSubject = summarySubject,
+                    topicInput = summaryTopicInput,
+                    attachedFile = attachedStudyFile,
+                    summaryUiState = summaryUiState,
+                    qaMessages = qaMessages,
+                    qaError = qaError,
+                    isQaLoading = isQaLoading,
+                    onSelectSubject = onSelectSummarySubject,
+                    onTopicInputChange = onSummaryTopicInputChange,
+                    onAttachFileUri = onAttachSummaryFileUri,
+                    onClearAttachedFile = onClearAttachedSummaryFile,
+                    onGenerateSummary = onGenerateSummary,
+                    onAskQuestion = onAskSummaryQuestion,
+                    onSaveSummary = onSaveCurrentSummary,
+                    onLoadSavedSummary = onLoadSavedSummary,
+                    onDeleteSavedSummary = onDeleteSavedSummary,
+                    onEmitMessage = onEmitMessage
                 )
             }
         }

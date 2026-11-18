@@ -16,11 +16,12 @@ data class BackupPayload(
     val studySessions: List<StudySessionEntity>,
     val dailyTasks: List<DailyTaskEntity>,
     val mcqSessions: List<McqSessionEntity>,
-    val mockTests: List<MockTestEntity>
+    val mockTests: List<MockTestEntity>,
+    val aiSummaries: List<AiSummaryEntity> = emptyList()
 )
 
 object BackupJsonSerializer {
-    private const val CURRENT_SCHEMA_VERSION = 1
+    private const val CURRENT_SCHEMA_VERSION = 2
 
     fun exportToJson(
         preferences: UserPreferences,
@@ -28,7 +29,8 @@ object BackupJsonSerializer {
         studySessions: List<StudySessionEntity>,
         dailyTasks: List<DailyTaskEntity>,
         mcqSessions: List<McqSessionEntity>,
-        mockTests: List<MockTestEntity>
+        mockTests: List<MockTestEntity>,
+        aiSummaries: List<AiSummaryEntity> = emptyList()
     ): String {
         val root = JSONObject().apply {
             put("app", "ECET Tracker 2027")
@@ -140,6 +142,19 @@ object BackupJsonSerializer {
                         put("incorrect", mock.incorrect)
                         put("notes", mock.notes)
                         put("createdAtMs", mock.createdAtMs)
+                    })
+                }
+            })
+
+            put("aiSummaries", JSONArray().apply {
+                aiSummaries.forEach { s ->
+                    put(JSONObject().apply {
+                        put("id", s.id)
+                        put("subject", s.subject)
+                        put("sourceTitle", s.sourceTitle)
+                        put("sourceType", s.sourceType)
+                        put("summaryMarkdown", s.summaryMarkdown)
+                        put("createdAtMs", s.createdAtMs)
                     })
                 }
             })
@@ -290,6 +305,26 @@ object BackupJsonSerializer {
             )
         }
 
+        val summaries = mutableListOf<AiSummaryEntity>()
+        val summariesArr = root.optJSONArray("aiSummaries") ?: JSONArray()
+        for (i in 0 until summariesArr.length()) {
+            val obj = summariesArr.getJSONObject(i)
+            val sourceTitle = obj.optString("sourceTitle").trim()
+            val summaryMarkdown = obj.optString("summaryMarkdown").trim()
+            if (sourceTitle.isNotEmpty() && summaryMarkdown.isNotEmpty()) {
+                summaries.add(
+                    AiSummaryEntity(
+                        id = obj.optLong("id", 0L),
+                        subject = Subject.fromName(obj.optString("subject")).name,
+                        sourceTitle = sourceTitle,
+                        sourceType = obj.optString("sourceType", "TOPIC").ifBlank { "TOPIC" },
+                        summaryMarkdown = summaryMarkdown,
+                        createdAtMs = obj.optLong("createdAtMs", System.currentTimeMillis())
+                    )
+                )
+            }
+        }
+
         BackupPayload(
             schemaVersion = schemaVersion,
             exportedAtMs = root.optLong("exportedAtMs", System.currentTimeMillis()),
@@ -298,7 +333,8 @@ object BackupJsonSerializer {
             studySessions = sessions,
             dailyTasks = tasks,
             mcqSessions = mcqs,
-            mockTests = mocks
+            mockTests = mocks,
+            aiSummaries = summaries
         )
     }
 

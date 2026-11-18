@@ -57,21 +57,31 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body {
+html {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+}
+
+body {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: contain;
-  overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 .app-shell {
   display: flex;
   min-height: 100dvh;
   width: 100%;
+  overflow-x: clip;
 }
 
 .main-column {
@@ -110,6 +120,7 @@ html, body {
   box-shadow: var(--nav-shadow);
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   backdrop-filter: blur(12px);
+  touch-action: manipulation;
 }
 
 .nav-btn {
@@ -255,6 +266,9 @@ html, body {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
   padding-bottom: 2px;
   scrollbar-width: none;
 }
@@ -414,8 +428,8 @@ h1, h2, h3, p { margin: 0; }
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
   padding: 4px;
   background: var(--card);
   border: 1px solid var(--border);
@@ -423,13 +437,17 @@ h1, h2, h3, p { margin: 0; }
 }
 .seg-btn {
   min-height: 38px;
+  padding: 0 2px;
   border: none;
   border-radius: 10px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .seg-btn.active {
   background: var(--primary);
@@ -555,6 +573,9 @@ textarea.input { min-height: 92px; resize: vertical; }
   max-width: 460px;
   max-height: 88dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -599,3 +620,67 @@ input[type="checkbox"].toggle {
   accent-color: var(--primary);
   cursor: pointer;
 }
+
+.syllabus-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.syllabus-photo-box {
+  width: 124px;
+  height: 124px;
+  min-width: 124px;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.syllabus-photo-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.ai-summary-output {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.qa-bubble {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qa-bubble.user {
+  background: var(--primary-soft);
+  border-color: rgba(79, 70, 229, 0.35);
+}
+
+.qa-sender {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+

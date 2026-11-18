@@ -1,6 +1,12 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.RotateRight
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -56,10 +66,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.data.local.SyllabusTopicEntity
 import com.example.data.model.Subject
 import com.example.data.model.SubjectSummary
@@ -76,6 +90,7 @@ import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.viewmodel.EcetUiState
 import com.example.util.DateUtils
+import java.io.File
 import java.util.Locale
 
 @Composable
@@ -87,6 +102,10 @@ fun SyllabusScreen(
     onUpdateStatus: (SyllabusTopicEntity, TopicStatus) -> Unit,
     onDeleteTopic: (Long) -> Unit,
     onImportSyllabus: (String, Subject) -> Unit,
+    onSummarizeTopic: (SyllabusTopicEntity) -> Unit,
+    onSelectPhotoUri: (Uri) -> Unit,
+    onRotatePhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedSubject by remember { mutableStateOf<Subject?>(null) }
@@ -98,6 +117,14 @@ fun SyllabusScreen(
     var showTopicEditor by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var topicPendingDelete by remember { mutableStateOf<SyllabusTopicEntity?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            onSelectPhotoUri(uri)
+        }
+    }
 
     LaunchedEffect(shouldOpenAddTopic) {
         if (shouldOpenAddTopic) {
@@ -168,6 +195,135 @@ fun SyllabusScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Import")
+                    }
+                }
+            }
+
+            // Square Photo Box Card
+            item {
+                val photoPath = uiState.preferences.syllabusPhotoPath
+                val photoFile = remember(photoPath) {
+                    photoPath?.let { File(it) }?.takeIf { it.exists() }
+                }
+                val rotationDeg = uiState.preferences.syllabusPhotoRotationDeg
+
+                EcetCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier
+                                .size(136.dp)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                                .testTag("syllabus_photo_box")
+                        ) {
+                            if (photoFile != null) {
+                                AsyncImage(
+                                    model = photoFile,
+                                    contentDescription = "Syllabus pinned photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { rotationZ = rotationDeg.toFloat() }
+                                )
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(10.dp),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.AddPhotoAlternate,
+                                        contentDescription = "Add square photo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Tap to Add Photo",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Syllabus Photo Box",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (photoFile != null) {
+                                    "Pinned in a 1:1 square frame. Tap photo to swap or rotate upright."
+                                } else {
+                                    "Pin a study formula sheet, circuit note, or personal motivation photo inside this square box."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.testTag("pick_syllabus_photo_button")
+                                ) {
+                                    Text(if (photoFile != null) "Change" else "Choose Photo")
+                                }
+                                if (photoFile != null) {
+                                    IconButton(
+                                        onClick = onRotatePhoto,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("rotate_syllabus_photo_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Rounded.RotateRight,
+                                            contentDescription = "Rotate photo 90 degrees",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onRemovePhoto,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("remove_syllabus_photo_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = "Remove photo",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -305,6 +461,7 @@ fun SyllabusScreen(
                     TopicRowCard(
                         topic = topic,
                         onChangeStatus = { newStatus -> onUpdateStatus(topic, newStatus) },
+                        onSummarize = { onSummarizeTopic(topic) },
                         onEdit = {
                             editingTopic = topic
                             showTopicEditor = true
@@ -427,6 +584,7 @@ private fun SubjectSummaryCard(
 private fun TopicRowCard(
     topic: SyllabusTopicEntity,
     onChangeStatus: (TopicStatus) -> Unit,
+    onSummarize: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -531,7 +689,19 @@ private fun TopicRowCard(
                         }
                     }
 
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = onSummarize,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = "AI summarize topic",
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("AI", style = MaterialTheme.typography.labelMedium)
+                        }
                         IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
                             Icon(
                                 imageVector = Icons.Rounded.Edit,

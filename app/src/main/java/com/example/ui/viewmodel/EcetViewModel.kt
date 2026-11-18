@@ -1,8 +1,13 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.ai.ElectronicsAiService
+import com.example.data.local.AiSummaryEntity
 import com.example.data.local.DailyTaskEntity
 import com.example.data.local.EcetDatabase
 import com.example.data.local.McqSessionEntity
@@ -10,7 +15,10 @@ import com.example.data.local.MockTestEntity
 import com.example.data.local.PreferencesManager
 import com.example.data.local.StudySessionEntity
 import com.example.data.local.SyllabusTopicEntity
+import com.example.data.model.AiChatMessage
+import com.example.data.model.AiSummaryUiState
 import com.example.data.model.AnalyticsState
+import com.example.data.model.AttachedStudyFile
 import com.example.data.model.DayStudyMetric
 import com.example.data.model.PersistedTimerSnapshot
 import com.example.data.model.PomodoroPhase
@@ -29,6 +37,10 @@ import com.example.data.model.UserPreferences
 import com.example.data.repository.EcetRepository
 import com.example.util.DateUtils
 import com.example.util.NotificationHelper
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,12 +50,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.Locale
+
+private const val VIEWMODEL_TAG = "EcetViewModel"
+private const val MAX_ATTACHMENT_BYTES = 18 * 1024 * 1024L
 
 data class EcetUiState(
     val preferences: UserPreferences = UserPreferences(),
@@ -52,6 +69,7 @@ data class EcetUiState(
     val dailyTasks: List<DailyTaskEntity> = emptyList(),
     val mcqSessions: List<McqSessionEntity> = emptyList(),
     val mockTests: List<MockTestEntity> = emptyList(),
+    val aiSummaries: List<AiSummaryEntity> = emptyList(),
     val overview: PreparationOverview = PreparationOverview(),
     val studyStats: StudyStats = StudyStats(),
     val subjectMcqPerformance: List<SubjectMcqPerformance> = emptyList(),
@@ -64,12 +82,38 @@ class EcetViewModel(application: Application) : AndroidViewModel(application) {
     private val database = EcetDatabase.getInstance(application)
     private val prefsManager = PreferencesManager(application)
     private val repository = EcetRepository(database.ecetDao(), prefsManager)
+    private val electronicsAiService = ElectronicsAiService()
 
     private val _timerUiState = MutableStateFlow(TimerUiState())
     val timerUiState: StateFlow<TimerUiState> = _timerUiState.asStateFlow()
 
     private val _snackbarEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val snackbarEvents: SharedFlow<String> = _snackbarEvents.asSharedFlow()
+
+    // AI Summary & Q&A state
+    private val _summaryUiState = MutableStateFlow<AiSummaryUiState>(AiSummaryUiState.Idle)
+    val summaryUiState: StateFlow<AiSummaryUiState> = _summaryUiState.asStateFlow()
+
+    private val _summarySubject = MutableStateFlow(Subject.ECE)
+    val summarySubject: StateFlow<Subject> = _summarySubject.asStateFlow()
+
+    private val _summaryTopicInput = MutableStateFlow("")
+    val summaryTopicInput: StateFlow<String> = _summaryTopicInput.asStateFlow()
+
+    private val _attachedStudyFile = MutableStateFlow<AttachedStudyFile?>(null)
+    val attachedStudyFile: StateFlow<AttachedStudyFile?> = _attachedStudyFile.asStateFlow()
+
+    private val _qaMessages = MutableStateFlow<List<AiChatMessage>>(emptyList())
+    val qaMessages: StateFlow<List<AiChatMessage>> = _qaMessages.asStateFlow()
+
+    private val _qaError = MutableStateFlow<String?>(null)
+    val qaError: StateFlow<String?> = _qaError.asStateFlow()
+
+    private val _isQaLoading = MutableStateFlow(false)
+    val isQaLoading: StateFlow<Boolean> = _isQaLoading.asStateFlow()
+
+    private var summaryJob: Job? = null
+    private var qaJob: Job? = null
 
     private val timerMutex = Mutex()
     private var latestSnapshot = PersistedTimerSnapshot()
@@ -87,15 +131,17 @@ class EcetViewModel(application: Application) : AndroidViewModel(application) {
 
     val uiState: StateFlow<EcetUiState> = combine(
         baseDataFlow,
-        repository.mockTestsFlow
-    ) { base, mocks ->
+        repository.mockTestsFlow,
+        repository.aiSummariesFlow
+    ) { base, mocks, summaries ->
         buildUiState(
             prefs = base.prefs,
             topics = base.topics,
             sessions = base.sessions,
             tasks = base.tasks,
             mcqs = base.mcqs,
-            mocks = mocks
+            mocks = mocks,
+            summaries = summaries
         )
     }.stateIn(
         scope = viewModelScope,
@@ -672,13 +718,309 @@ class EcetViewModel(application: Application) : AndroidViewModel(application) {
         _snackbarEvents.tryEmit(message)
     }
 
+    // Syllabus Square Photo Box
+    fun setSyllabusPhotoFromUri(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val destPath = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    val outFile = File(app.filesDir, "syllabus_photo_${System.currentTimeMillis()}.jpg")
+                    app.filesDir.listFiles()?.forEach { file ->
+                        if (file.name.startsWith("syllabus_photo_") && file.absolutePath != outFile.absolutePath) {
+                            file.delete()
+                        }
+                    }
+                    app.contentResolver.openInputStream(uri)?.use { input ->
+                        outFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    } ?: throw IllegalStateException("Could not open selected image.")
+                    outFile.absolutePath
+                }
+                repository.updateSyllabusPhoto(destPath, 0)
+                _snackbarEvents.tryEmit("Syllabus photo updated.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(VIEWMODEL_TAG, "Failed to save syllabus photo", e)
+                _snackbarEvents.tryEmit("Could not load photo: ${e.localizedMessage ?: "Unknown error"}")
+            }
+        }
+    }
+
+    fun rotateSyllabusPhoto() {
+        val currentPath = latestPrefs.syllabusPhotoPath ?: return
+        val nextRotation = (latestPrefs.syllabusPhotoRotationDeg + 90) % 360
+        viewModelScope.launch {
+            repository.updateSyllabusPhoto(currentPath, nextRotation)
+        }
+    }
+
+    fun removeSyllabusPhoto() {
+        val currentPath = latestPrefs.syllabusPhotoPath
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if (!currentPath.isNullOrBlank()) {
+                    runCatching { File(currentPath).delete() }
+                }
+            }
+            repository.updateSyllabusPhoto(null, 0)
+            _snackbarEvents.tryEmit("Syllabus photo removed.")
+        }
+    }
+
+    // AI Summary & Follow-up Q&A
+    fun setSummarySubject(subject: Subject) {
+        _summarySubject.value = subject
+    }
+
+    fun setSummaryTopicInput(input: String) {
+        _summaryTopicInput.value = input
+    }
+
+    fun prefillSummaryTopic(subject: Subject, topicTitle: String) {
+        _summarySubject.value = subject
+        _summaryTopicInput.value = topicTitle
+    }
+
+    fun clearAttachedStudyFile() {
+        _attachedStudyFile.value = null
+    }
+
+    fun attachStudyFileFromUri(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val attached = withContext(Dispatchers.IO) {
+                    val resolver = getApplication<Application>().contentResolver
+                    var displayName = "study_file"
+                    var reportedSize = -1L
+                    resolver.query(uri, null, null, null, null)?.use { cursor ->
+                        val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        if (cursor.moveToFirst()) {
+                            if (nameIdx >= 0) displayName = cursor.getString(nameIdx) ?: displayName
+                            if (sizeIdx >= 0 && !cursor.isNull(sizeIdx)) reportedSize = cursor.getLong(sizeIdx)
+                        }
+                    }
+                    if (reportedSize > MAX_ATTACHMENT_BYTES) {
+                        throw IllegalArgumentException("File is larger than 18 MB. Please pick a smaller PDF, image, or note.")
+                    }
+                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw IllegalStateException("Unable to read selected file.")
+                    if (bytes.size.toLong() > MAX_ATTACHMENT_BYTES) {
+                        throw IllegalArgumentException("File exceeds 18 MB size limit.")
+                    }
+
+                    val rawMime = resolver.getType(uri).orEmpty().ifBlank {
+                        guessMimeTypeFromName(displayName)
+                    }
+                    val textContent = if (
+                        rawMime.startsWith("text/") ||
+                        rawMime == "application/json" ||
+                        displayName.endsWith(".txt", ignoreCase = true) ||
+                        displayName.endsWith(".md", ignoreCase = true) ||
+                        displayName.endsWith(".csv", ignoreCase = true) ||
+                        displayName.endsWith(".json", ignoreCase = true)
+                    ) {
+                        bytes.decodeToString()
+                    } else {
+                        null
+                    }
+                    AttachedStudyFile(
+                        displayName = displayName,
+                        mimeType = rawMime,
+                        sizeBytes = bytes.size.toLong(),
+                        bytes = bytes,
+                        textContent = textContent
+                    )
+                }
+                _attachedStudyFile.value = attached
+                _snackbarEvents.tryEmit("Attached ${attached.displayName}")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(VIEWMODEL_TAG, "Failed to attach file", e)
+                _snackbarEvents.tryEmit(e.localizedMessage ?: "Failed to attach file.")
+            }
+        }
+    }
+
+    private fun guessMimeTypeFromName(name: String): String {
+        val lower = name.lowercase(Locale.US)
+        return when {
+            lower.endsWith(".pdf") -> "application/pdf"
+            lower.endsWith(".png") -> "image/png"
+            lower.endsWith(".jpg") || lower.endsWith(".jpeg") -> "image/jpeg"
+            lower.endsWith(".webp") -> "image/webp"
+            lower.endsWith(".txt") || lower.endsWith(".md") -> "text/plain"
+            lower.endsWith(".csv") -> "text/csv"
+            lower.endsWith(".json") -> "application/json"
+            else -> "application/octet-stream"
+        }
+    }
+
+    fun generateElectronicsSummary() {
+        val topicPrompt = _summaryTopicInput.value.trim()
+        val file = _attachedStudyFile.value
+        val subject = _summarySubject.value
+        if (topicPrompt.isEmpty() && file == null) {
+            _summaryUiState.value = AiSummaryUiState.Error("Enter an electronics topic or attach a PDF, image, or text note first.")
+            return
+        }
+
+        summaryJob?.cancel()
+        summaryJob = viewModelScope.launch {
+            _summaryUiState.value = AiSummaryUiState.Loading
+            _qaMessages.value = emptyList()
+            _qaError.value = null
+            var latestText = ""
+            try {
+                electronicsAiService.summarizeStream(
+                    subject = subject,
+                    topicPrompt = topicPrompt,
+                    attachedFile = file
+                ).collect { streamedText ->
+                    latestText = streamedText
+                    _summaryUiState.value = AiSummaryUiState.Streaming(streamedText)
+                }
+                if (latestText.isNotBlank()) {
+                    _summaryUiState.value = AiSummaryUiState.Success(latestText)
+                } else {
+                    _summaryUiState.value = AiSummaryUiState.Error("Gemini returned an empty response.")
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(VIEWMODEL_TAG, "Summary generation timed out", e)
+                _summaryUiState.value = AiSummaryUiState.Error("Request timed out after 60 seconds. Check your internet connection and try again.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(VIEWMODEL_TAG, "Summary generation failed", e)
+                _summaryUiState.value = AiSummaryUiState.Error(
+                    e.localizedMessage ?: "Gemini summary failed. Verify network connection and Firebase App Check."
+                )
+            }
+        }
+    }
+
+    fun askElectronicsQuestion(question: String) {
+        val cleanQuestion = question.trim()
+        if (cleanQuestion.isEmpty()) return
+
+        val subject = _summarySubject.value
+        val file = _attachedStudyFile.value
+        val contextTitle = buildString {
+            val t = _summaryTopicInput.value.trim()
+            if (t.isNotEmpty()) append(t)
+            if (file != null) {
+                if (isNotEmpty()) append(" · ")
+                append(file.displayName)
+            }
+        }
+        val summaryText = when (val s = _summaryUiState.value) {
+            is AiSummaryUiState.Success -> s.text
+            is AiSummaryUiState.Streaming -> s.text
+            else -> ""
+        }
+
+        val prior = _qaMessages.value
+        val userMsgId = "u_${System.currentTimeMillis()}"
+        val modelMsgId = "m_${System.currentTimeMillis() + 1}"
+        _qaError.value = null
+        _isQaLoading.value = true
+        _qaMessages.value = prior +
+            AiChatMessage(id = userMsgId, isUser = true, text = cleanQuestion) +
+            AiChatMessage(id = modelMsgId, isUser = false, text = "", isStreaming = true)
+
+        qaJob?.cancel()
+        qaJob = viewModelScope.launch {
+            var latestAnswer = ""
+            try {
+                electronicsAiService.askFollowUpStream(
+                    subject = subject,
+                    contextTitle = contextTitle,
+                    contextSummary = summaryText,
+                    attachedFile = file,
+                    priorMessages = prior,
+                    question = cleanQuestion
+                ).collect { chunk ->
+                    latestAnswer = chunk
+                    _qaMessages.value = _qaMessages.value.map { msg ->
+                        if (msg.id == modelMsgId) msg.copy(text = chunk, isStreaming = true) else msg
+                    }
+                }
+                _qaMessages.value = _qaMessages.value.map { msg ->
+                    if (msg.id == modelMsgId) msg.copy(text = latestAnswer, isStreaming = false) else msg
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(VIEWMODEL_TAG, "Q&A timed out", e)
+                _qaMessages.value = _qaMessages.value.filterNot { it.id == modelMsgId && it.text.isBlank() }
+                _qaError.value = "Question timed out after 60 seconds. Please try again."
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(VIEWMODEL_TAG, "Q&A failed", e)
+                _qaMessages.value = _qaMessages.value.filterNot { it.id == modelMsgId && it.text.isBlank() }
+                _qaError.value = e.localizedMessage ?: "Failed to get answer from Gemini."
+            } finally {
+                _isQaLoading.value = false
+            }
+        }
+    }
+
+    fun saveCurrentSummaryToLibrary() {
+        val markdown = when (val s = _summaryUiState.value) {
+            is AiSummaryUiState.Success -> s.text
+            else -> return
+        }.trim()
+        if (markdown.isEmpty()) return
+
+        val file = _attachedStudyFile.value
+        val topicText = _summaryTopicInput.value.trim()
+        val sourceTitle = when {
+            topicText.isNotEmpty() && file != null -> "$topicText (${file.displayName})"
+            topicText.isNotEmpty() -> topicText
+            file != null -> file.displayName
+            else -> "Electronics Note"
+        }
+        val sourceType = if (file != null) "FILE" else "TOPIC"
+
+        viewModelScope.launch {
+            repository.saveAiSummary(
+                AiSummaryEntity(
+                    subject = _summarySubject.value.name,
+                    sourceTitle = sourceTitle,
+                    sourceType = sourceType,
+                    summaryMarkdown = markdown
+                )
+            )
+            _snackbarEvents.tryEmit("Summary saved offline.")
+        }
+    }
+
+    fun loadSavedSummary(entity: AiSummaryEntity) {
+        _summarySubject.value = Subject.fromName(entity.subject)
+        _summaryTopicInput.value = entity.sourceTitle
+        _attachedStudyFile.value = null
+        _summaryUiState.value = AiSummaryUiState.Success(entity.summaryMarkdown)
+        _qaMessages.value = emptyList()
+        _qaError.value = null
+    }
+
+    fun deleteAiSummary(id: Long) {
+        viewModelScope.launch {
+            repository.deleteAiSummary(id)
+            _snackbarEvents.tryEmit("Saved summary deleted.")
+        }
+    }
+
     private fun buildUiState(
         prefs: UserPreferences,
         topics: List<SyllabusTopicEntity>,
         sessions: List<StudySessionEntity>,
         tasks: List<DailyTaskEntity>,
         mcqs: List<McqSessionEntity>,
-        mocks: List<MockTestEntity>
+        mocks: List<MockTestEntity>,
+        summaries: List<AiSummaryEntity>
     ): EcetUiState {
         val today = DateUtils.todayEpochDay()
 
@@ -863,6 +1205,7 @@ class EcetViewModel(application: Application) : AndroidViewModel(application) {
             dailyTasks = tasks,
             mcqSessions = mcqs,
             mockTests = mocks,
+            aiSummaries = summaries,
             overview = overview,
             studyStats = studyStats,
             subjectMcqPerformance = subjectMcqs,

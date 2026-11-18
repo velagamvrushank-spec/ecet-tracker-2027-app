@@ -64,6 +64,7 @@ import com.example.ui.screens.StudyHubScreen
 import com.example.ui.screens.SyllabusScreen
 import com.example.ui.theme.EcetTrackerTheme
 import com.example.ui.viewmodel.EcetViewModel
+import com.example.util.configureAppCheck
 
 enum class BottomNavDestination(
     val route: String,
@@ -81,6 +82,7 @@ enum class BottomNavDestination(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureAppCheck(this, intent)
         enableEdgeToEdge()
         setContent {
             val viewModel: EcetViewModel = viewModel()
@@ -93,6 +95,13 @@ class MainActivity : ComponentActivity() {
 fun EcetTrackerApp(viewModel: EcetViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val timerState by viewModel.timerUiState.collectAsStateWithLifecycle()
+    val summarySubject by viewModel.summarySubject.collectAsStateWithLifecycle()
+    val summaryTopicInput by viewModel.summaryTopicInput.collectAsStateWithLifecycle()
+    val attachedStudyFile by viewModel.attachedStudyFile.collectAsStateWithLifecycle()
+    val summaryUiState by viewModel.summaryUiState.collectAsStateWithLifecycle()
+    val qaMessages by viewModel.qaMessages.collectAsStateWithLifecycle()
+    val qaError by viewModel.qaError.collectAsStateWithLifecycle()
+    val isQaLoading by viewModel.isQaLoading.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -234,6 +243,10 @@ fun EcetTrackerApp(viewModel: EcetViewModel) {
                                     pendingAddMock = true
                                     navigateToTab(BottomNavDestination.STUDY)
                                 },
+                                onQuickAiSummary = {
+                                    studySubTab = StudySubTab.SUMMARY
+                                    navigateToTab(BottomNavDestination.STUDY)
+                                },
                                 onToggleTask = { viewModel.toggleDailyTask(it) },
                                 onOpenSyllabus = { navigateToTab(BottomNavDestination.SYLLABUS) },
                                 onOpenStudyTab = { tab ->
@@ -257,7 +270,18 @@ fun EcetTrackerApp(viewModel: EcetViewModel) {
                                 onDeleteTopic = { viewModel.deleteTopic(it) },
                                 onImportSyllabus = { raw, subject ->
                                     viewModel.importSyllabus(raw, subject)
-                                }
+                                },
+                                onSummarizeTopic = { topic ->
+                                    viewModel.prefillSummaryTopic(
+                                        subject = com.example.data.model.Subject.fromName(topic.subject),
+                                        topicTitle = topic.title
+                                    )
+                                    studySubTab = StudySubTab.SUMMARY
+                                    navigateToTab(BottomNavDestination.STUDY)
+                                },
+                                onSelectPhotoUri = { viewModel.setSyllabusPhotoFromUri(it) },
+                                onRotatePhoto = { viewModel.rotateSyllabusPhoto() },
+                                onRemovePhoto = { viewModel.removeSyllabusPhoto() }
                             )
                         }
 
@@ -297,7 +321,24 @@ fun EcetTrackerApp(viewModel: EcetViewModel) {
                                 onSaveMockTest = { id, title, dateDay, m, mMax, p, pMax, c, cMax, e, eMax, att, cor, inc, notes ->
                                     viewModel.saveMockTest(id, title, dateDay, m, mMax, p, pMax, c, cMax, e, eMax, att, cor, inc, notes)
                                 },
-                                onDeleteMockTest = { viewModel.deleteMockTest(it) }
+                                onDeleteMockTest = { viewModel.deleteMockTest(it) },
+                                summarySubject = summarySubject,
+                                summaryTopicInput = summaryTopicInput,
+                                attachedStudyFile = attachedStudyFile,
+                                summaryUiState = summaryUiState,
+                                qaMessages = qaMessages,
+                                qaError = qaError,
+                                isQaLoading = isQaLoading,
+                                onSelectSummarySubject = { viewModel.setSummarySubject(it) },
+                                onSummaryTopicInputChange = { viewModel.setSummaryTopicInput(it) },
+                                onAttachSummaryFileUri = { viewModel.attachStudyFileFromUri(it) },
+                                onClearAttachedSummaryFile = { viewModel.clearAttachedStudyFile() },
+                                onGenerateSummary = { viewModel.generateElectronicsSummary() },
+                                onAskSummaryQuestion = { viewModel.askElectronicsQuestion(it) },
+                                onSaveCurrentSummary = { viewModel.saveCurrentSummaryToLibrary() },
+                                onLoadSavedSummary = { viewModel.loadSavedSummary(it) },
+                                onDeleteSavedSummary = { viewModel.deleteAiSummary(it) },
+                                onEmitMessage = { viewModel.emitMessage(it) }
                             )
                         }
 

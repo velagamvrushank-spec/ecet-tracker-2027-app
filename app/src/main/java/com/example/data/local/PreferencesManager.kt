@@ -36,6 +36,8 @@ class PreferencesManager(private val context: Context) {
         val POMODORO_FOCUS_MINUTES = intPreferencesKey("pomodoro_focus_minutes")
         val POMODORO_SHORT_BREAK_MINUTES = intPreferencesKey("pomodoro_short_break_minutes")
         val POMODORO_LONG_BREAK_MINUTES = intPreferencesKey("pomodoro_long_break_minutes")
+        val SYLLABUS_PHOTO_PATH = stringPreferencesKey("syllabus_photo_path")
+        val SYLLABUS_PHOTO_ROTATION_DEG = intPreferencesKey("syllabus_photo_rotation_deg")
 
         // Timer persistence
         val TIMER_RUNNING = booleanPreferencesKey("timer_running")
@@ -63,7 +65,9 @@ class PreferencesManager(private val context: Context) {
             reminderMinute = prefs[Keys.REMINDER_MINUTE] ?: 0,
             pomodoroFocusMinutes = (prefs[Keys.POMODORO_FOCUS_MINUTES] ?: 25).coerceIn(1, 180),
             pomodoroShortBreakMinutes = (prefs[Keys.POMODORO_SHORT_BREAK_MINUTES] ?: 5).coerceIn(1, 60),
-            pomodoroLongBreakMinutes = (prefs[Keys.POMODORO_LONG_BREAK_MINUTES] ?: 15).coerceIn(1, 90)
+            pomodoroLongBreakMinutes = (prefs[Keys.POMODORO_LONG_BREAK_MINUTES] ?: 15).coerceIn(1, 90),
+            syllabusPhotoPath = prefs[Keys.SYLLABUS_PHOTO_PATH],
+            syllabusPhotoRotationDeg = (((prefs[Keys.SYLLABUS_PHOTO_ROTATION_DEG] ?: 0) % 360) + 360) % 360
         )
     }
 
@@ -130,6 +134,19 @@ class PreferencesManager(private val context: Context) {
             prefs[Keys.POMODORO_FOCUS_MINUTES] = focusMinutes.coerceIn(1, 180)
             prefs[Keys.POMODORO_SHORT_BREAK_MINUTES] = shortBreakMinutes.coerceIn(1, 60)
             prefs[Keys.POMODORO_LONG_BREAK_MINUTES] = longBreakMinutes.coerceIn(1, 90)
+        }
+    }
+
+    suspend fun updateSyllabusPhoto(path: String?, rotationDeg: Int) {
+        val normalizedRotation = ((rotationDeg % 360) + 360) % 360
+        context.ecetDataStore.edit { prefs ->
+            if (path.isNullOrBlank()) {
+                prefs.remove(Keys.SYLLABUS_PHOTO_PATH)
+                prefs[Keys.SYLLABUS_PHOTO_ROTATION_DEG] = 0
+            } else {
+                prefs[Keys.SYLLABUS_PHOTO_PATH] = path
+                prefs[Keys.SYLLABUS_PHOTO_ROTATION_DEG] = normalizedRotation
+            }
         }
     }
 

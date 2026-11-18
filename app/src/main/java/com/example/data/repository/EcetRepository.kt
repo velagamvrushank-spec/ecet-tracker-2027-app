@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import com.example.data.local.AiSummaryEntity
 import com.example.data.local.BackupJsonSerializer
 import com.example.data.local.DailyTaskEntity
 import com.example.data.local.EcetDao
@@ -24,6 +25,7 @@ class EcetRepository(
     val dailyTasksFlow: Flow<List<DailyTaskEntity>> = dao.observeDailyTasks()
     val mcqSessionsFlow: Flow<List<McqSessionEntity>> = dao.observeMcqSessions()
     val mockTestsFlow: Flow<List<MockTestEntity>> = dao.observeMockTests()
+    val aiSummariesFlow: Flow<List<AiSummaryEntity>> = dao.observeAiSummaries()
     val preferencesFlow: Flow<UserPreferences> = preferencesManager.userPreferencesFlow
     val timerSnapshotFlow: Flow<PersistedTimerSnapshot> = preferencesManager.timerSnapshotFlow
 
@@ -81,6 +83,11 @@ class EcetRepository(
 
     suspend fun deleteMockTest(id: Long) = dao.deleteMockTestById(id)
 
+    // AI Summaries
+    suspend fun saveAiSummary(summary: AiSummaryEntity): Long = dao.insertAiSummary(summary)
+
+    suspend fun deleteAiSummary(id: Long) = dao.deleteAiSummaryById(id)
+
     // Preferences & Timer
     suspend fun updateProfile(
         studentName: String,
@@ -111,6 +118,9 @@ class EcetRepository(
     suspend fun saveTimerSnapshot(snapshot: PersistedTimerSnapshot) =
         preferencesManager.saveTimerSnapshot(snapshot)
 
+    suspend fun updateSyllabusPhoto(path: String?, rotationDeg: Int) =
+        preferencesManager.updateSyllabusPhoto(path, rotationDeg)
+
     // Backup & Restore
     suspend fun exportBackupJson(): String {
         val prefs = preferencesFlow.first()
@@ -119,7 +129,8 @@ class EcetRepository(
         val tasks = dailyTasksFlow.first()
         val mcqs = mcqSessionsFlow.first()
         val mocks = mockTestsFlow.first()
-        return BackupJsonSerializer.exportToJson(prefs, topics, sessions, tasks, mcqs, mocks)
+        val summaries = aiSummariesFlow.first()
+        return BackupJsonSerializer.exportToJson(prefs, topics, sessions, tasks, mcqs, mocks, summaries)
     }
 
     suspend fun restoreBackupJson(rawJson: String): Result<String> {
@@ -130,10 +141,11 @@ class EcetRepository(
                 sessions = payload.studySessions,
                 tasks = payload.dailyTasks,
                 mcqs = payload.mcqSessions,
-                mocks = payload.mockTests
+                mocks = payload.mockTests,
+                aiSummaries = payload.aiSummaries
             )
             preferencesManager.restorePreferences(payload.preferences)
-            "Restored ${payload.topics.size} topics, ${payload.studySessions.size} sessions, ${payload.dailyTasks.size} tasks, ${payload.mcqSessions.size} MCQ logs, and ${payload.mockTests.size} mock tests."
+            "Restored ${payload.topics.size} topics, ${payload.studySessions.size} sessions, ${payload.dailyTasks.size} tasks, ${payload.mcqSessions.size} MCQ logs, ${payload.mockTests.size} mock tests, and ${payload.aiSummaries.size} AI summaries."
         }
     }
 

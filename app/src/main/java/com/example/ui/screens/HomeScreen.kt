@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.AddTask
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Edit
@@ -82,6 +83,7 @@ fun HomeScreen(
     onQuickAddTask: () -> Unit,
     onQuickRecordMcq: () -> Unit,
     onQuickRecordMock: () -> Unit,
+    onQuickAiSummary: () -> Unit,
     onToggleTask: (DailyTaskEntity) -> Unit,
     onOpenSyllabus: () -> Unit,
     onOpenStudyTab: (StudySubTab) -> Unit,
@@ -99,7 +101,7 @@ fun HomeScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 720.dp)
                 .testTag("home_list"),
@@ -390,7 +392,7 @@ fun HomeScreen(
                     ) {
                         QuickActionTile(
                             icon = Icons.Rounded.Quiz,
-                            label = "Record MCQ Practice",
+                            label = "MCQ Log",
                             accent = AmberWarning,
                             onClick = onQuickRecordMcq,
                             modifier = Modifier
@@ -399,12 +401,21 @@ fun HomeScreen(
                         )
                         QuickActionTile(
                             icon = Icons.AutoMirrored.Rounded.Assignment,
-                            label = "Record Mock Test",
+                            label = "Mock Test",
                             accent = CobaltPrimary,
                             onClick = onQuickRecordMock,
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("quick_action_mock")
+                        )
+                        QuickActionTile(
+                            icon = Icons.Rounded.AutoAwesome,
+                            label = "AI Summary",
+                            accent = EmeraldSuccess,
+                            onClick = onQuickAiSummary,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("quick_action_summary")
                         )
                     }
                 }

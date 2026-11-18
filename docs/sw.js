@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ecet-tracker-2027-v3';
+const CACHE_NAME = 'ecet-tracker-2027-v5';
 const APP_SHELL = [
   './',
   './index.html',

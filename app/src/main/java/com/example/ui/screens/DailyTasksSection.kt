@@ -124,7 +124,7 @@ fun DailyTasksSection(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 108.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Calendar Header + Week / Month Switcher

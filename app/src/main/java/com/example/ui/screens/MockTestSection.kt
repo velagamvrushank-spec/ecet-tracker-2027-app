@@ -93,7 +93,7 @@ fun MockTestSection(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 108.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Mock Performance Chart
@@ -126,7 +126,7 @@ fun MockTestSection(
                     Spacer(modifier = Modifier.height(10.dp))
                     TrendLineChart(
                         points = uiState.analytics.mockScoreSeries,
-                        lineColor = CobaltPrimary,
+                        lineColor = MaterialTheme.colorScheme.primary,
                         emptyMessage = "Log your first mock test to see score trends."
                     )
                 }

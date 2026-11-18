@@ -58,7 +58,7 @@ fun AnalyticsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 720.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -161,8 +161,8 @@ fun AnalyticsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     StudyHoursBarChart(
                         metrics = analytics.weeklyStudyDays,
-                        barColor = CobaltPrimary,
-                        secondaryColor = VioletSecondary,
+                        barColor = MaterialTheme.colorScheme.primary,
+                        secondaryColor = MaterialTheme.colorScheme.secondary,
                         targetHours = uiState.preferences.dailyStudyTargetMinutes / 60f
                     )
                 }
@@ -180,8 +180,8 @@ fun AnalyticsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     StudyHoursBarChart(
                         metrics = analytics.monthlyStudyBuckets,
-                        barColor = VioletSecondary,
-                        secondaryColor = CobaltPrimary
+                        barColor = MaterialTheme.colorScheme.secondary,
+                        secondaryColor = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -268,7 +268,7 @@ fun AnalyticsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     TrendLineChart(
                         points = analytics.mockScoreSeries,
-                        lineColor = CobaltPrimary,
+                        lineColor = MaterialTheme.colorScheme.primary,
                         emptyMessage = "Record mock tests to visualize your score progression."
                     )
                 }

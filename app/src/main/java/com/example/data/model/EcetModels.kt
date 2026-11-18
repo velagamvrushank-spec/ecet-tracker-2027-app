@@ -6,7 +6,7 @@ import com.example.ui.theme.CobaltPrimary
 import com.example.ui.theme.CoralError
 import com.example.ui.theme.CyanPhysics
 import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.SlateTextSecondary
+import com.example.ui.theme.SlateMuted
 import com.example.ui.theme.VioletSecondary
 
 enum class Subject(
@@ -38,7 +38,7 @@ enum class TopicStatus(val label: String) {
     }
 
     fun color(): Color = when (this) {
-        NOT_STARTED -> SlateTextSecondary
+        NOT_STARTED -> SlateMuted
         IN_PROGRESS -> AmberWarning
         COMPLETED -> EmeraldSuccess
     }
@@ -94,7 +94,7 @@ enum class ThemeMode(val label: String) {
 
     companion object {
         fun fromName(value: String?): ThemeMode =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: DARK
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: LIGHT
     }
 }
 
@@ -111,7 +111,7 @@ data class UserPreferences(
     val targetExam: String = "TG ECET 2027",
     val examDateEpochDay: Long? = null,
     val dailyStudyTargetMinutes: Int = 240,
-    val themeMode: ThemeMode = ThemeMode.DARK,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val remindersEnabled: Boolean = false,
     val pomodoroAlertsEnabled: Boolean = true,
     val reminderHour: Int = 19,

@@ -7,7 +7,7 @@ export function esc(str) {
     .replace(/'/g, '&#39;');
 }
 
-export function renderBarChartSvg(metrics, color1 = '#5B8DEF', color2 = '#8B7CF6', targetHours = null) {
+export function renderBarChartSvg(metrics, color1 = '#4F46E5', color2 = '#0D9488', targetHours = null) {
   if (!metrics.length || metrics.every((m) => m.studyHours <= 0)) {
     return `<div class="muted" style="text-align:center;padding:34px 8px;">Complete a study session to plot your study hours.</div>`;
   }
@@ -27,7 +27,7 @@ export function renderBarChartSvg(metrics, color1 = '#5B8DEF', color2 = '#8B7CF6
 
   const targetLine =
     targetHours && targetHours > 0 && targetHours <= maxVal
-      ? `<line x1="0" y1="${(chartH * (1 - targetHours / maxVal)).toFixed(1)}" x2="${w}" y2="${(chartH * (1 - targetHours / maxVal)).toFixed(1)}" stroke="#34D399" stroke-width="1.5" stroke-dasharray="6 4" />`
+      ? `<line x1="0" y1="${(chartH * (1 - targetHours / maxVal)).toFixed(1)}" x2="${w}" y2="${(chartH * (1 - targetHours / maxVal)).toFixed(1)}" stroke="#059669" stroke-width="1.5" stroke-dasharray="6 4" />`
       : '';
 
   const bars = metrics
@@ -69,8 +69,8 @@ export function renderDonutChartSvg(completed, inProgress, notStarted) {
   let arcs = `<circle cx="58" cy="58" r="${r}" fill="none" stroke="var(--border)" stroke-width="13" />`;
   if (total > 0) {
     const segs = [
-      { count: completed, color: '#34D399' },
-      { count: inProgress, color: '#FBBF24' },
+      { count: completed, color: '#059669' },
+      { count: inProgress, color: '#D97706' },
       { count: notStarted, color: '#64748B' }
     ];
     let offset = 0;
@@ -93,15 +93,15 @@ export function renderDonutChartSvg(completed, inProgress, notStarted) {
         <text x="58" y="72" text-anchor="middle" fill="var(--text-muted)" font-size="11">${completed}/${total}</text>
       </svg>
       <div style="flex:1;display:flex;flex-direction:column;gap:8px;font-size:13px;">
-        <div class="row-between"><span><span class="dot" style="background:#34D399;margin-right:6px;"></span>Completed</span><strong class="mono">${completed}</strong></div>
-        <div class="row-between"><span><span class="dot" style="background:#FBBF24;margin-right:6px;"></span>In Progress</span><strong class="mono">${inProgress}</strong></div>
+        <div class="row-between"><span><span class="dot" style="background:#059669;margin-right:6px;"></span>Completed</span><strong class="mono">${completed}</strong></div>
+        <div class="row-between"><span><span class="dot" style="background:#D97706;margin-right:6px;"></span>In Progress</span><strong class="mono">${inProgress}</strong></div>
         <div class="row-between"><span><span class="dot" style="background:#64748B;margin-right:6px;"></span>Not Started</span><strong class="mono">${notStarted}</strong></div>
       </div>
     </div>
   `;
 }
 
-export function renderTrendLineSvg(points, lineColor = '#5B8DEF', emptyMsg = 'No data yet.') {
+export function renderTrendLineSvg(points, lineColor = '#4F46E5', emptyMsg = 'No data yet.') {
   if (!points.length) {
     return `<div class="muted" style="text-align:center;padding:34px 8px;">${esc(emptyMsg)}</div>`;
   }

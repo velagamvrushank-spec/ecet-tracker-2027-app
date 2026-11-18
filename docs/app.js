@@ -13,22 +13,22 @@ import {
 import { esc, renderBarChartSvg, renderDonutChartSvg, renderTrendLineSvg } from './charts.js';
 
 const SUBJECTS = [
-  { key: 'MATHEMATICS', displayName: 'Mathematics', shortName: 'Math', color: '#5B8DEF', maxMarks: 50 },
-  { key: 'PHYSICS', displayName: 'Physics', shortName: 'Physics', color: '#38BDF8', maxMarks: 25 },
-  { key: 'CHEMISTRY', displayName: 'Chemistry', shortName: 'Chem', color: '#34D399', maxMarks: 25 },
-  { key: 'ECE', displayName: 'Electronics & Communication (ECE)', shortName: 'ECE', color: '#8B7CF6', maxMarks: 100 }
+  { key: 'MATHEMATICS', displayName: 'Mathematics', shortName: 'Math', color: '#4F46E5', maxMarks: 50 },
+  { key: 'PHYSICS', displayName: 'Physics', shortName: 'Physics', color: '#0284C7', maxMarks: 25 },
+  { key: 'CHEMISTRY', displayName: 'Chemistry', shortName: 'Chem', color: '#059669', maxMarks: 25 },
+  { key: 'ECE', displayName: 'Electronics & Communication (ECE)', shortName: 'ECE', color: '#7C3AED', maxMarks: 100 }
 ];
 
 const STATUSES = [
-  { key: 'NOT_STARTED', label: 'Not Started', color: '#94A3B8' },
-  { key: 'IN_PROGRESS', label: 'In Progress', color: '#FBBF24' },
-  { key: 'COMPLETED', label: 'Completed', color: '#34D399' }
+  { key: 'NOT_STARTED', label: 'Not Started', color: '#64748B' },
+  { key: 'IN_PROGRESS', label: 'In Progress', color: '#D97706' },
+  { key: 'COMPLETED', label: 'Completed', color: '#059669' }
 ];
 
 const PRIORITIES = [
-  { key: 'HIGH', label: 'High', color: '#F87171' },
-  { key: 'MEDIUM', label: 'Medium', color: '#FBBF24' },
-  { key: 'LOW', label: 'Low', color: '#5B8DEF' }
+  { key: 'HIGH', label: 'High', color: '#E11D48' },
+  { key: 'MEDIUM', label: 'Medium', color: '#D97706' },
+  { key: 'LOW', label: 'Low', color: '#4F46E5' }
 ];
 
 const PHASES = [
@@ -180,14 +180,14 @@ function toast(message) {
 }
 
 function applyTheme(themeMode) {
-  let effective = 'dark';
-  if (themeMode === 'LIGHT') effective = 'light';
+  let effective = 'light';
+  if (themeMode === 'DARK') effective = 'dark';
   else if (themeMode === 'SYSTEM') {
-    effective = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    effective = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   document.documentElement.setAttribute('data-theme', effective);
   const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (metaTheme) metaTheme.setAttribute('content', effective === 'light' ? '#F5F7FC' : '#090D16');
+  if (metaTheme) metaTheme.setAttribute('content', effective === 'dark' ? '#11162B' : '#F6F7FB');
 }
 
 function showModal(html, onBind) {
@@ -553,25 +553,25 @@ function renderHome(main, agg) {
       <div class="h2" style="margin-bottom:8px;">Quick Actions</div>
       <div class="grid-3">
         <button class="quick-tile" id="qa-timer" type="button">
-          <span class="quick-icon" style="background:rgba(91,141,239,0.16);color:#5B8DEF;">▶</span>
+          <span class="quick-icon" style="background:rgba(79,70,229,0.14);color:#4F46E5;">▶</span>
           <span>Start Timer</span>
         </button>
         <button class="quick-tile" id="qa-topic" type="button">
-          <span class="quick-icon" style="background:rgba(139,124,246,0.16);color:#8B7CF6;">＋</span>
+          <span class="quick-icon" style="background:rgba(124,58,237,0.14);color:#7C3AED;">＋</span>
           <span>Add Topic</span>
         </button>
         <button class="quick-tile" id="qa-task" type="button">
-          <span class="quick-icon" style="background:rgba(52,211,153,0.16);color:#34D399;">✓</span>
+          <span class="quick-icon" style="background:rgba(13,148,136,0.14);color:#0D9488;">✓</span>
           <span>Add Task</span>
         </button>
       </div>
       <div class="grid-2" style="margin-top:8px;">
         <button class="quick-tile" id="qa-mcq" type="button">
-          <span class="quick-icon" style="background:rgba(251,191,36,0.16);color:#FBBF24;">?</span>
+          <span class="quick-icon" style="background:rgba(217,119,6,0.14);color:#D97706;">?</span>
           <span>Record MCQ Practice</span>
         </button>
         <button class="quick-tile" id="qa-mock" type="button">
-          <span class="quick-icon" style="background:rgba(91,141,239,0.16);color:#5B8DEF;">▤</span>
+          <span class="quick-icon" style="background:rgba(2,132,199,0.14);color:#0284C7;">▤</span>
           <span>Record Mock Test</span>
         </button>
       </div>
@@ -1404,7 +1404,7 @@ function renderMocksSection(container, agg) {
         </div>
         ${state.mockTests.length ? `<span class="mono" style="color:var(--success);font-weight:700;font-size:13px;">Best: ${bestPct.toFixed(1)}%</span>` : ''}
       </div>
-      ${renderTrendLineSvg(agg.mockScoreSeries, '#5B8DEF', 'Log your first mock test to see score trends.')}
+      ${renderTrendLineSvg(agg.mockScoreSeries, '#4F46E5', 'Log your first mock test to see score trends.')}
     </div>
 
     <div class="h2">Test History (${sortedDesc.length})</div>
@@ -1432,10 +1432,10 @@ function renderMocksSection(container, agg) {
                   </div>
                 </div>
                 <div class="grid-4" style="margin-top:10px;">
-                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#5B8DEF;font-weight:700;">Math</div><div class="mono" style="font-size:12px;">${t.mathMarks}/${t.mathMaxMarks}</div></div>
-                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#38BDF8;font-weight:700;">Physics</div><div class="mono" style="font-size:12px;">${t.physicsMarks}/${t.physicsMaxMarks}</div></div>
-                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#34D399;font-weight:700;">Chem</div><div class="mono" style="font-size:12px;">${t.chemistryMarks}/${t.chemistryMaxMarks}</div></div>
-                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#8B7CF6;font-weight:700;">ECE</div><div class="mono" style="font-size:12px;">${t.eceMarks}/${t.eceMaxMarks}</div></div>
+                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#4F46E5;font-weight:700;">Math</div><div class="mono" style="font-size:12px;">${t.mathMarks}/${t.mathMaxMarks}</div></div>
+                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#0284C7;font-weight:700;">Physics</div><div class="mono" style="font-size:12px;">${t.physicsMarks}/${t.physicsMaxMarks}</div></div>
+                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#059669;font-weight:700;">Chem</div><div class="mono" style="font-size:12px;">${t.chemistryMarks}/${t.chemistryMaxMarks}</div></div>
+                  <div class="stat-box" style="padding:6px 4px;"><div style="font-size:11px;color:#7C3AED;font-weight:700;">ECE</div><div class="mono" style="font-size:12px;">${t.eceMarks}/${t.eceMaxMarks}</div></div>
                 </div>
                 <div class="row-between" style="margin-top:10px;">
                   <span class="muted">Attempted ${t.attempted} · Correct ${t.correct} · Wrong ${t.incorrect} · Acc ${acc.toFixed(0)}%</span>
@@ -1515,10 +1515,10 @@ function renderAnalytics(main, agg) {
                   m.studyMinutes === 0 && m.tasksCompleted === 0
                     ? 'var(--border)'
                     : m.studyMinutes >= targetMins
-                    ? '#34D399'
+                    ? 'var(--success)'
                     : m.studyMinutes >= targetMins / 2
-                    ? '#5B8DEF'
-                    : 'rgba(91,141,239,0.45)';
+                    ? 'var(--primary)'
+                    : 'rgba(79,70,229,0.42)';
                 return `<div class="heatmap-cell" style="background:${bg};"></div>`;
               })
               .join('')}
@@ -1529,20 +1529,20 @@ function renderAnalytics(main, agg) {
       </div>
       <div class="row-between muted" style="margin-top:10px;font-size:11.5px;">
         <span>Last 12 Weeks</span>
-        <span style="display:flex;align-items:center;gap:4px;">Less <span style="width:10px;height:10px;border-radius:2px;background:var(--border);display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:rgba(91,141,239,0.45);display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:#5B8DEF;display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:#34D399;display:inline-block;"></span> Goal+</span>
+        <span style="display:flex;align-items:center;gap:4px;">Less <span style="width:10px;height:10px;border-radius:2px;background:var(--border);display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:rgba(79,70,229,0.42);display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:var(--primary);display:inline-block;"></span><span style="width:10px;height:10px;border-radius:2px;background:var(--success);display:inline-block;"></span> Goal+</span>
       </div>
     </div>
 
     <div class="card">
       <div class="h2">Weekly Study Hours</div>
       <div class="muted" style="margin-bottom:10px;">Last 7 days · Dashed line shows daily goal</div>
-      ${renderBarChartSvg(agg.weeklyDays, '#5B8DEF', '#8B7CF6', state.preferences.dailyStudyTargetMinutes / 60)}
+      ${renderBarChartSvg(agg.weeklyDays, '#4F46E5', '#0D9488', state.preferences.dailyStudyTargetMinutes / 60)}
     </div>
 
     <div class="card">
       <div class="h2">Monthly Study Hours</div>
       <div class="muted" style="margin-bottom:10px;">4-week rolling breakdown</div>
-      ${renderBarChartSvg(agg.monthlyBuckets, '#8B7CF6', '#5B8DEF')}
+      ${renderBarChartSvg(agg.monthlyBuckets, '#0D9488', '#4F46E5')}
     </div>
 
     <div class="card">
@@ -1572,13 +1572,13 @@ function renderAnalytics(main, agg) {
     <div class="card">
       <div class="h2">MCQ Accuracy Trend</div>
       <div class="muted" style="margin-bottom:8px;">Accuracy across your recent practice sessions</div>
-      ${renderTrendLineSvg(agg.mcqAccuracySeries, '#34D399', 'Log MCQ practice sessions to plot your accuracy graph.')}
+      ${renderTrendLineSvg(agg.mcqAccuracySeries, '#059669', 'Log MCQ practice sessions to plot your accuracy graph.')}
     </div>
 
     <div class="card">
       <div class="h2">Mock Test Performance Graph</div>
       <div class="muted" style="margin-bottom:8px;">Percentage score across recorded mock exams</div>
-      ${renderTrendLineSvg(agg.mockScoreSeries, '#5B8DEF', 'Record mock tests to visualize your score progression.')}
+      ${renderTrendLineSvg(agg.mockScoreSeries, '#4F46E5', 'Record mock tests to visualize your score progression.')}
     </div>
   `;
 }

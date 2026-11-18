@@ -162,7 +162,7 @@ object BackupJsonSerializer {
                     prefObj.getLong("examDateEpochDay")
                 } else null,
                 dailyStudyTargetMinutes = prefObj.optInt("dailyStudyTargetMinutes", 240).coerceIn(15, 960),
-                themeMode = ThemeMode.fromName(prefObj.optString("themeMode", "DARK")),
+                themeMode = ThemeMode.fromName(prefObj.optString("themeMode", "LIGHT")),
                 remindersEnabled = prefObj.optBoolean("remindersEnabled", false),
                 pomodoroAlertsEnabled = prefObj.optBoolean("pomodoroAlertsEnabled", true),
                 reminderHour = prefObj.optInt("reminderHour", 19).coerceIn(0, 23),

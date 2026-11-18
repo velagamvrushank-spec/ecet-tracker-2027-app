@@ -100,7 +100,7 @@ fun McqTrackerSection(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("mcq_list"),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 108.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Overall Summary Card

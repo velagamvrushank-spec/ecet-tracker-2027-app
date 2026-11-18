@@ -103,7 +103,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .widthIn(max = 720.dp)
                 .testTag("home_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Greeting Header
@@ -239,7 +239,7 @@ fun HomeScreen(
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(
@@ -248,8 +248,8 @@ fun HomeScreen(
                             .background(
                                 Brush.linearGradient(
                                     colors = listOf(
-                                        CobaltPrimary.copy(alpha = 0.16f),
-                                        VioletSecondary.copy(alpha = 0.12f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
                                         Color.Transparent
                                     )
                                 )
@@ -359,7 +359,7 @@ fun HomeScreen(
                         QuickActionTile(
                             icon = Icons.Rounded.PlayArrow,
                             label = "Start Timer",
-                            accent = CobaltPrimary,
+                            accent = MaterialTheme.colorScheme.primary,
                             onClick = onQuickStartTimer,
                             modifier = Modifier
                                 .weight(1f)
@@ -377,7 +377,7 @@ fun HomeScreen(
                         QuickActionTile(
                             icon = Icons.Rounded.AddTask,
                             label = "Add Task",
-                            accent = EmeraldSuccess,
+                            accent = MaterialTheme.colorScheme.secondary,
                             onClick = onQuickAddTask,
                             modifier = Modifier
                                 .weight(1f)

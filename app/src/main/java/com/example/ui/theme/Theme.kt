@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -7,23 +8,26 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.example.data.model.ThemeMode
 
 private val EcetDarkColorScheme = darkColorScheme(
-    primary = CobaltPrimary,
-    onPrimary = Color(0xFF06132E),
+    primary = IndigoPrimaryDark,
+    onPrimary = Color(0xFF131144),
     primaryContainer = CobaltContainer,
     onPrimaryContainer = CobaltOnContainer,
-    secondary = VioletSecondary,
-    onSecondary = Color(0xFF150B38),
+    secondary = TealSecondaryDark,
+    onSecondary = Color(0xFF042F2E),
     secondaryContainer = VioletContainer,
     onSecondaryContainer = VioletOnContainer,
     tertiary = EmeraldSuccess,
-    onTertiary = Color(0xFF04241B),
+    onTertiary = Color(0xFF022C22),
     tertiaryContainer = EmeraldContainer,
-    onTertiaryContainer = Color(0xFFCCFBEF),
+    onTertiaryContainer = Color(0xFFD1FAE5),
     background = SlateVoid,
     onBackground = SlateTextPrimary,
     surface = SlateSurface,
@@ -34,23 +38,23 @@ private val EcetDarkColorScheme = darkColorScheme(
     surfaceContainer = SlateCard,
     surfaceContainerHigh = SlateCardElevated,
     outline = SlateBorder,
-    outlineVariant = Color(0xFF1D273E),
-    error = CoralError,
-    onError = Color(0xFF330A0E),
+    outlineVariant = Color(0xFF28345C),
+    error = Color(0xFFFB7185),
+    onError = Color(0xFF4C0519),
     errorContainer = CoralContainer,
-    onErrorContainer = Color(0xFFFEE2E2)
+    onErrorContainer = Color(0xFFFFE4E6)
 )
 
 private val EcetLightColorScheme = lightColorScheme(
-    primary = LightCobaltPrimary,
+    primary = IndigoPrimaryLight,
     onPrimary = Color.White,
-    primaryContainer = LightCobaltContainer,
-    onPrimaryContainer = Color(0xFF102A6B),
-    secondary = LightVioletSecondary,
+    primaryContainer = IndigoContainerLight,
+    onPrimaryContainer = IndigoOnContainerLight,
+    secondary = TealSecondaryLight,
     onSecondary = Color.White,
-    secondaryContainer = LightVioletContainer,
-    onSecondaryContainer = Color(0xFF2E1065),
-    tertiary = Color(0xFF059669),
+    secondaryContainer = TealContainerLight,
+    onSecondaryContainer = TealOnContainerLight,
+    tertiary = EmeraldSuccess,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFD1FAE5),
     onTertiaryContainer = Color(0xFF064E3B),
@@ -61,14 +65,14 @@ private val EcetLightColorScheme = lightColorScheme(
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightTextSecondary,
     surfaceContainerLow = LightSurface,
-    surfaceContainer = LightSurfaceVariant,
+    surfaceContainer = LightSurfaceElevated,
     surfaceContainerHigh = Color(0xFFE2E8F5),
     outline = LightBorder,
-    outlineVariant = Color(0xFFE2E8F0),
-    error = Color(0xFFDC2626),
+    outlineVariant = Color(0xFFE8EDF7),
+    error = CoralError,
     onError = Color.White,
-    errorContainer = Color(0xFFFEE2E2),
-    onErrorContainer = Color(0xFF7F1D1D)
+    errorContainer = Color(0xFFFFE4E6),
+    onErrorContainer = Color(0xFF881337)
 )
 
 val EcetShapes = Shapes(
@@ -80,7 +84,7 @@ val EcetShapes = Shapes(
 
 @Composable
 fun EcetTrackerTheme(
-    themeMode: ThemeMode = ThemeMode.DARK,
+    themeMode: ThemeMode = ThemeMode.LIGHT,
     content: @Composable () -> Unit
 ) {
     val useDarkTheme = when (themeMode) {
@@ -89,6 +93,18 @@ fun EcetTrackerTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
     val colorScheme = if (useDarkTheme) EcetDarkColorScheme else EcetLightColorScheme
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !useDarkTheme
+                controller.isAppearanceLightNavigationBars = !useDarkTheme
+            }
+        }
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,

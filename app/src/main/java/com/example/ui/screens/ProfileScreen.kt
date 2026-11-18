@@ -167,7 +167,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 720.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {

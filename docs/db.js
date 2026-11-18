@@ -7,7 +7,7 @@ export const DEFAULT_PREFS = {
   targetExam: 'TG ECET 2027',
   examDateEpochDay: null,
   dailyStudyTargetMinutes: 240,
-  themeMode: 'DARK',
+  themeMode: 'LIGHT',
   remindersEnabled: false,
   pomodoroAlertsEnabled: true,
   reminderHour: 19,

@@ -475,6 +475,12 @@ async function reloadData() {
   applyTheme(state.preferences.themeMode);
 }
 
+function scrollMainToTop() {
+  const mc = document.getElementById('main-content');
+  if (mc) mc.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
 function renderNav() {
   const bottom = document.getElementById('bottom-nav');
   const rail = document.getElementById('rail-nav-items');
@@ -498,7 +504,7 @@ function renderNav() {
     btn.onclick = () => {
       state.tab = btn.getAttribute('data-nav');
       render();
-      window.scrollTo(0, 0);
+      scrollMainToTop();
     };
   });
 }
@@ -2006,7 +2012,7 @@ function renderAiSummarySection(container) {
         state.aiQaMessages = [];
         state.aiQaError = '';
         render();
-        window.scrollTo(0, 0);
+        scrollMainToTop();
       }
     };
   });
@@ -2850,6 +2856,15 @@ async function init() {
     state.installDismissed = true;
     document.getElementById('install-banner').classList.add('hidden');
   };
+
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.ctrlKey) e.preventDefault();
+    },
+    { passive: false }
+  );
 
   await reloadData();
   render();
